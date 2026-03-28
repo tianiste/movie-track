@@ -4,6 +4,7 @@
   "private": true,
   "description": "MovieTrack Chrome extension (TypeScript source)",
   "scripts": {
+    "clean": "rm -rf dist",
     "build": "tsc -p tsconfig.json",
     "watch": "tsc -w -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json"

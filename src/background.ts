@@ -399,3 +399,5 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
 
   return true;
 });
+
+export {};

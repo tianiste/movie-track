@@ -6,7 +6,7 @@
   "permissions": ["tabs", "storage", "alarms"],
   "host_permissions": ["<all_urls>"],
   "background": {
-    "service_worker": "background.js",
+    "service_worker": "dist/background.js",
     "type": "module"
   },
   "action": {

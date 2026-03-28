@@ -153,3 +153,5 @@ enabledToggle.addEventListener('change', () => {
 });
 
 void loadData();
+
+export {};

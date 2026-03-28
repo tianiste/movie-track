@@ -10,12 +10,26 @@ Tracks what you watch using tab metadata (page title + URL) for anime/movie page
 - Shows records in popup UI.
 - Lets you export records as JSON.
 
+## TypeScript workflow
+
+Chrome extensions still run JavaScript, so TypeScript is compiled into `dist/background.js` and `dist/popup.js`.
+
+1. Install dependencies:
+	- `npm install`
+2. Build once:
+	- `npm run build`
+3. Or watch mode while developing:
+	- `npm run watch`
+
+TypeScript sources live in `src/background.ts` and `src/popup.ts`.
+
 ## Install (Developer mode)
 
 1. Open Chrome and go to `chrome://extensions`.
 2. Turn on **Developer mode**.
 3. Click **Load unpacked**.
 4. Select this folder (`MovieTrack`).
+5. After TypeScript changes, run `npm run build` and click **Reload** on the extension card.
 
 ## Notes
 
