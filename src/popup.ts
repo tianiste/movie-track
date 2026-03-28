@@ -13,6 +13,7 @@ interface WatchRecord {
   endedAt: number;
   durationSec: number;
   lastPlaybackTime?: number;
+  videoDurationSec?: number | null;
 }
 
 interface GetHistoryResponse {
@@ -78,30 +79,58 @@ function render(): void {
   for (const record of records) {
     const node = template.content.firstElementChild?.cloneNode(true) as HTMLElement;
 
-    const titleEl = node.querySelector('.title') as HTMLElement;
-    const typeEl = node.querySelector('.type') as HTMLElement;
-    const metaEl = node.querySelector('.meta') as HTMLElement;
-    const linkEl = node.querySelector('.link') as HTMLAnchorElement;
+    const badgeEl = node.querySelector('.badge') as HTMLElement;
+    const titleEl = node.querySelector('.card-title') as HTMLElement;
+    const urlEl = node.querySelector('.card-url') as HTMLElement;
+    const linkEl = node.querySelector('.open-btn') as HTMLAnchorElement;
+    const metaContainer = node.querySelector('.card-meta') as HTMLElement;
+    const progressBar = node.querySelector('.progress-bar') as HTMLElement;
 
-    titleEl.textContent = record.title || record.rawTitle || record.url;
-    typeEl.textContent = record.mediaType || 'unknown';
+    const mediaType = record.mediaType || 'unknown';
+    const title = record.title || record.rawTitle || record.url;
+    const watchedSeconds = Math.max(0, record.lastPlaybackTime ?? 0);
+    const videoDurationSec = (record.videoDurationSec ?? 0) > 0 ? (record.videoDurationSec as number) : null;
 
-    const metaParts = [
-      record.hostname || 'unknown',
-      formatDuration(record.durationSec || 0),
-      formatDate(record.startedAt)
-    ];
+    // Badge
+    badgeEl.textContent = mediaType.toUpperCase();
+    badgeEl.className = `badge ${mediaType}`;
 
-    if (record.episode) {
-      metaParts.push(`ep ${record.episode}`);
-    }
-
-    if (record.lastPlaybackTime) {
-      metaParts.push(`↻ ${formatDuration(record.lastPlaybackTime)}`);
-    }
-
-    metaEl.textContent = metaParts.join(' • ');
+    // Title and URL
+    titleEl.textContent = title;
+    urlEl.textContent = (record.hostname || record.url).substring(0, 40);
     linkEl.href = record.url;
+    linkEl.title = watchedSeconds > 0 ? `Continue from ${formatDuration(watchedSeconds)}` : 'Open';
+    linkEl.addEventListener('click', (event) => {
+      event.preventDefault();
+      void chrome.runtime.sendMessage({
+        type: 'openWithResume',
+        url: record.url,
+        resumeAtSec: watchedSeconds
+      });
+    });
+
+    // Meta info: Schedule and Calendar
+    const metaItems = metaContainer.querySelectorAll('.meta-item');
+    if (metaItems[0]) {
+      const metaText = metaItems[0].querySelector('.meta-text') as HTMLElement;
+      metaText.textContent = `${watchedSeconds > 0 ? formatDuration(watchedSeconds) : '—'} elapsed`;
+    }
+    if (metaItems[1]) {
+      const metaText = metaItems[1].querySelector('.meta-text') as HTMLElement;
+      const today = new Date();
+      const recordDate = new Date(record.startedAt);
+      const isToday = today.toDateString() === recordDate.toDateString();
+      metaText.textContent = isToday ? 'Today' : recordDate.toLocaleDateString();
+    }
+
+    // Progress bar width (percentage of video watched)
+    const progressPercent = videoDurationSec
+      ? Math.min(100, Math.round((watchedSeconds / videoDurationSec) * 100))
+      : 0;
+    progressBar.style.width = progressPercent + '%';
+
+    // Add media type class for card styling
+    node.classList.add(mediaType);
 
     fragment.append(node);
   }

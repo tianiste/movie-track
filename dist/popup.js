@@ -46,25 +46,52 @@ function render() {
     const fragment = document.createDocumentFragment();
     for (const record of records) {
         const node = template.content.firstElementChild?.cloneNode(true);
-        const titleEl = node.querySelector('.title');
-        const typeEl = node.querySelector('.type');
-        const metaEl = node.querySelector('.meta');
-        const linkEl = node.querySelector('.link');
-        titleEl.textContent = record.title || record.rawTitle || record.url;
-        typeEl.textContent = record.mediaType || 'unknown';
-        const metaParts = [
-            record.hostname || 'unknown',
-            formatDuration(record.durationSec || 0),
-            formatDate(record.startedAt)
-        ];
-        if (record.episode) {
-            metaParts.push(`ep ${record.episode}`);
-        }
-        if (record.lastPlaybackTime) {
-            metaParts.push(`↻ ${formatDuration(record.lastPlaybackTime)}`);
-        }
-        metaEl.textContent = metaParts.join(' • ');
+        const badgeEl = node.querySelector('.badge');
+        const titleEl = node.querySelector('.card-title');
+        const urlEl = node.querySelector('.card-url');
+        const linkEl = node.querySelector('.open-btn');
+        const metaContainer = node.querySelector('.card-meta');
+        const progressBar = node.querySelector('.progress-bar');
+        const mediaType = record.mediaType || 'unknown';
+        const title = record.title || record.rawTitle || record.url;
+        const watchedSeconds = Math.max(0, record.lastPlaybackTime ?? 0);
+        const videoDurationSec = (record.videoDurationSec ?? 0) > 0 ? record.videoDurationSec : null;
+        // Badge
+        badgeEl.textContent = mediaType.toUpperCase();
+        badgeEl.className = `badge ${mediaType}`;
+        // Title and URL
+        titleEl.textContent = title;
+        urlEl.textContent = (record.hostname || record.url).substring(0, 40);
         linkEl.href = record.url;
+        linkEl.title = watchedSeconds > 0 ? `Continue from ${formatDuration(watchedSeconds)}` : 'Open';
+        linkEl.addEventListener('click', (event) => {
+            event.preventDefault();
+            void chrome.runtime.sendMessage({
+                type: 'openWithResume',
+                url: record.url,
+                resumeAtSec: watchedSeconds
+            });
+        });
+        // Meta info: Schedule and Calendar
+        const metaItems = metaContainer.querySelectorAll('.meta-item');
+        if (metaItems[0]) {
+            const metaText = metaItems[0].querySelector('.meta-text');
+            metaText.textContent = `${watchedSeconds > 0 ? formatDuration(watchedSeconds) : '—'} elapsed`;
+        }
+        if (metaItems[1]) {
+            const metaText = metaItems[1].querySelector('.meta-text');
+            const today = new Date();
+            const recordDate = new Date(record.startedAt);
+            const isToday = today.toDateString() === recordDate.toDateString();
+            metaText.textContent = isToday ? 'Today' : recordDate.toLocaleDateString();
+        }
+        // Progress bar width (percentage of video watched)
+        const progressPercent = videoDurationSec
+            ? Math.min(100, Math.round((watchedSeconds / videoDurationSec) * 100))
+            : 0;
+        progressBar.style.width = progressPercent + '%';
+        // Add media type class for card styling
+        node.classList.add(mediaType);
         fragment.append(node);
     }
     listEl.append(fragment);

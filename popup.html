@@ -1,48 +1,110 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MovieTrack</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" rel="stylesheet" />
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
-    <main>
-      <header>
-        <h1>MovieTrack</h1>
-        <label class="toggle-row">
-          <input id="enabledToggle" type="checkbox" />
-          <span>Tracking enabled</span>
-        </label>
-      </header>
+    <!-- TopAppBar -->
+    <header class="topbar">
+      <div class="topbar-content">
+        <div class="topbar-title">
+          <span class="material-symbols-outlined icon-title">movie_filter</span>
+          <h1>MovieTrack</h1>
+        </div>
+        <div class="topbar-actions">
+          <label class="toggle-label">
+            <span class="toggle-text">Tracking</span>
+            <input id="enabledToggle" type="checkbox" class="toggle-input" />
+            <span class="toggle-switch"></span>
+          </label>
+          <button class="icon-btn settings-btn">
+            <span class="material-symbols-outlined">settings</span>
+          </button>
+        </div>
+      </div>
+    </header>
 
-      <section class="summary">
-        <div><strong id="totalItems">0</strong> records</div>
-        <div><strong id="totalHours">0.0</strong> hours</div>
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Statistics Section -->
+      <section class="stats-card">
+        <div class="stat-item">
+          <p class="stat-label">Total Records</p>
+          <p class="stat-value" id="totalItems">0</p>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item text-right">
+          <p class="stat-label">Time Watched</p>
+          <p class="stat-value primary" id="totalHours">0.0</p>
+          <p class="stat-unit">hours</p>
+        </div>
       </section>
 
-      <section class="controls">
-        <select id="typeFilter">
-          <option value="all">All</option>
-          <option value="anime">Anime</option>
-          <option value="movie">Movie</option>
-          <option value="unknown">Unknown</option>
-        </select>
-        <button id="exportBtn">Export JSON</button>
-        <button id="clearBtn" class="danger">Clear</button>
+      <!-- Action Bar -->
+      <section class="action-bar">
+        <div class="filter-wrapper">
+          <select id="typeFilter" class="filter-select">
+            <option value="all">All Categories</option>
+            <option value="anime">Anime</option>
+            <option value="movie">Movie</option>
+            <option value="unknown">Unknown</option>
+          </select>
+          <span class="material-symbols-outlined filter-icon">expand_more</span>
+        </div>
+        <button id="exportBtn" class="action-btn export-btn">
+          <span class="material-symbols-outlined">ios_share</span>
+          Export
+        </button>
+        <button id="clearBtn" class="action-btn clear-btn">
+          <span class="material-symbols-outlined">delete_sweep</span>
+          Clear
+        </button>
       </section>
 
-      <section id="list" class="list"></section>
+      <!-- Records List -->
+      <section class="records-section">
+        <h2 class="section-title">Recent Activity</h2>
+        <div id="list" class="records-list"></div>
+      </section>
     </main>
 
+    <!-- Record Card Template -->
     <template id="rowTemplate">
-      <article class="item">
-        <div class="title-row">
-          <h2 class="title"></h2>
-          <span class="type"></span>
+      <article class="record-card">
+        <div class="card-header">
+          <div class="card-title-section">
+            <div class="title-row">
+              <span class="badge"></span>
+              <h3 class="card-title"></h3>
+            </div>
+            <p class="card-url"></p>
+          </div>
+          <a class="open-btn" target="_blank" rel="noreferrer">
+            <span class="material-symbols-outlined">open_in_new</span>
+          </a>
         </div>
-        <div class="meta"></div>
-        <a class="link" target="_blank" rel="noreferrer">Open</a>
+        <div class="card-meta">
+          <div class="meta-item">
+            <span class="material-symbols-outlined meta-icon">schedule</span>
+            <span class="meta-text"></span>
+          </div>
+          <div class="meta-item">
+            <span class="material-symbols-outlined meta-icon">calendar_today</span>
+            <span class="meta-text"></span>
+          </div>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-track">
+            <div class="progress-bar"></div>
+          </div>
+        </div>
       </article>
     </template>
 
