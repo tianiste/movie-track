@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MovieTrack</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>MovieTrack</h1>
+        <label class="toggle-row">
+          <input id="enabledToggle" type="checkbox" />
+          <span>Tracking enabled</span>
+        </label>
+      </header>
+
+      <section class="summary">
+        <div><strong id="totalItems">0</strong> records</div>
+        <div><strong id="totalHours">0.0</strong> hours</div>
+      </section>
+
+      <section class="controls">
+        <select id="typeFilter">
+          <option value="all">All</option>
+          <option value="anime">Anime</option>
+          <option value="movie">Movie</option>
+          <option value="unknown">Unknown</option>
+        </select>
+        <button id="exportBtn">Export JSON</button>
+        <button id="clearBtn" class="danger">Clear</button>
+      </section>
+
+      <section id="list" class="list"></section>
+    </main>
+
+    <template id="rowTemplate">
+      <article class="item">
+        <div class="title-row">
+          <h2 class="title"></h2>
+          <span class="type"></span>
+        </div>
+        <div class="meta"></div>
+        <a class="link" target="_blank" rel="noreferrer">Open</a>
+      </article>
+    </template>
+
+    <script src="popup.js" type="module"></script>
+  </body>
+</html>

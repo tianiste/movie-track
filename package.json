@@ -1,0 +1,15 @@
+{
+  "name": "movietrack",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MovieTrack Chrome extension (TypeScript source)",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -w -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.292",
+    "typescript": "^5.8.3"
+  }
+}
