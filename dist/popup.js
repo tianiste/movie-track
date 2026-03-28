@@ -60,6 +60,9 @@ function render() {
         if (record.episode) {
             metaParts.push(`ep ${record.episode}`);
         }
+        if (record.lastPlaybackTime) {
+            metaParts.push(`↻ ${formatDuration(record.lastPlaybackTime)}`);
+        }
         metaEl.textContent = metaParts.join(' • ');
         linkEl.href = record.url;
         fragment.append(node);

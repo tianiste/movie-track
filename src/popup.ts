@@ -12,6 +12,7 @@ interface WatchRecord {
   startedAt: number;
   endedAt: number;
   durationSec: number;
+  lastPlaybackTime?: number;
 }
 
 interface GetHistoryResponse {
@@ -93,6 +94,10 @@ function render(): void {
 
     if (record.episode) {
       metaParts.push(`ep ${record.episode}`);
+    }
+
+    if (record.lastPlaybackTime) {
+      metaParts.push(`↻ ${formatDuration(record.lastPlaybackTime)}`);
     }
 
     metaEl.textContent = metaParts.join(' • ');

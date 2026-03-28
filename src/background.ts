@@ -2,9 +2,9 @@ const HISTORY_KEY = 'watchHistory';
 const ENABLED_KEY = 'trackingEnabled';
 const HEARTBEAT_ALARM = 'heartbeat';
 
-const MIN_DURATION_SEC = 20;
+const MIN_DURATION_SEC = 10;
 const MERGE_GAP_MS = 5 * 60 * 1000;
-const HEARTBEAT_MINUTES = 0.25;
+const HEARTBEAT_MINUTES = 0.08;
 
 type MediaType = 'anime' | 'movie' | 'unknown';
 
@@ -32,6 +32,7 @@ interface ActiveSession {
   confidence: number;
   startTime: number;
   endTime?: number;
+  lastPlaybackTime?: number;
 }
 
 interface WatchRecord {
@@ -48,6 +49,7 @@ interface WatchRecord {
   startedAt: number;
   endedAt: number;
   durationSec: number;
+  lastPlaybackTime?: number;
 }
 
 const activeSessions = new Map<number, ActiveSession>();
@@ -108,36 +110,22 @@ function inferMedia(tab: chrome.tabs.Tab): InferredMedia | null {
     return null;
   }
 
-  const animeSignals = [
-    /\banime\b/i,
-    /\bepisode\b/i,
-    /\bsub\b|\bdub\b/i,
-    /\/anime\//i,
-    /one\s*piece|naruto|bleach|aot|attack\s*on\s*titan|jujutsu\s*kaisen/i
+  // Try to classify as anime or movie based on keywords
+  const animeIndicators = [
+    /\banime\b|\bepisode\b|\bep\s*\d+\b/i,
+    /\bsub\b|\bdub\b|dubbed|subtitled/i,
+    /season\s*\d+|s\d+e\d+/i,
+    /animekai|crunchyroll|9anime|animixplay|gogoanime|zoro|hianime/i
   ];
 
-  const movieSignals = [
-    /\bmovie\b|\bfilm\b/i,
-    /\/movies?\//i,
-    /\b1080p\b|\b720p\b|\bwebrip\b|\bbluray\b/i
+  const movieIndicators = [
+    /\bmovie\b|\bfilm\b|\bcinema\b/i,
+    /1080p|720p|webrip|bluray|hdtv|dvdrip/i,
+    /fmovies|putlocker|123movies|primewire|soap2day|flixtor/i
   ];
 
-  const watchSignals = [
-    /\bwatch\b/i,
-    /\/watch/i,
-    /\/player/i,
-    /\/stream/i,
-    /\bfull\s*screen\b/i,
-    /\btrailer\b/i
-  ];
-
-  const animeScore = animeSignals.reduce((score, re) => score + (re.test(combined) ? 1 : 0), 0);
-  const movieScore = movieSignals.reduce((score, re) => score + (re.test(combined) ? 1 : 0), 0);
-  const watchScore = watchSignals.reduce((score, re) => score + (re.test(combined) ? 1 : 0), 0);
-
-  if (animeScore === 0 && movieScore === 0 && watchScore === 0) {
-    return null;
-  }
+  const animeScore = animeIndicators.reduce((score, re) => score + (re.test(combined) ? 1 : 0), 0);
+  const movieScore = movieIndicators.reduce((score, re) => score + (re.test(combined) ? 1 : 0), 0);
 
   let mediaType: MediaType = 'unknown';
   if (animeScore >= movieScore && animeScore > 0) {
@@ -154,13 +142,14 @@ function inferMedia(tab: chrome.tabs.Tab): InferredMedia | null {
     cleanedTitle,
     season,
     episode,
-    confidence: animeScore + movieScore + watchScore
+    confidence: animeScore + movieScore
   };
 }
 
 function buildRecord(session: ActiveSession): WatchRecord {
   const endTime = session.endTime ?? Date.now();
   const durationSec = Math.max(0, Math.round((endTime - session.startTime) / 1000));
+  const lastPlaybackTime = session.lastPlaybackTime ?? durationSec;
 
   return {
     id: `${session.tabId}-${session.startTime}`,
@@ -175,7 +164,8 @@ function buildRecord(session: ActiveSession): WatchRecord {
     confidence: session.confidence,
     startedAt: session.startTime,
     endedAt: endTime,
-    durationSec
+    durationSec,
+    lastPlaybackTime
   };
 }
 
@@ -185,8 +175,10 @@ async function isTrackingEnabled(): Promise<boolean> {
 
 async function saveRecord(record: WatchRecord): Promise<void> {
   if (record.durationSec < MIN_DURATION_SEC) {
+    console.debug(`[MovieTrack] Skipped record (${record.durationSec}s < ${MIN_DURATION_SEC}s):`, record.title);
     return;
   }
+  console.debug(`[MovieTrack] Saving record (${record.durationSec}s):`, record.title);
 
   const history = await getStorage<WatchRecord[]>(HISTORY_KEY, []);
   const last = history[history.length - 1];
@@ -232,17 +224,27 @@ async function startOrUpdateSession(tab: chrome.tabs.Tab, now = Date.now()): Pro
     return;
   }
 
-  const inferred = inferMedia(tab);
+  // Primary detection: tab is playing audio (bulletproof for any streaming site)
+  const isAudible = tab.audible === true;
   const existing = activeSessions.get(tab.id);
 
-  if (!inferred) {
+  console.debug('[MovieTrack] Tab', tab.id, 'audible:', isAudible, 'title:', tab.title);
+
+  if (!isAudible) {
     if (existing) {
+      console.debug('[MovieTrack] Audio stopped; ending session');
       await finalizeSession(tab.id, now);
     }
     return;
   }
 
+  // Audio is playing; classify content type for metadata
+  const inferred = inferMedia(tab);
+  console.debug('[MovieTrack] Inferred:', inferred);
+
   if (existing && existing.url === tab.url && existing.title === (tab.title ?? '')) {
+    // Session continuing; update playback time
+    existing.lastPlaybackTime = Math.round((now - existing.startTime) / 1000);
     return;
   }
 
@@ -250,15 +252,16 @@ async function startOrUpdateSession(tab: chrome.tabs.Tab, now = Date.now()): Pro
     await finalizeSession(tab.id, now);
   }
 
+  console.debug('[MovieTrack] Starting new session for tab', tab.id);
   activeSessions.set(tab.id, {
     tabId: tab.id,
     url: tab.url ?? '',
     title: tab.title ?? '',
-    cleanedTitle: inferred.cleanedTitle,
-    mediaType: inferred.mediaType,
-    season: inferred.season,
-    episode: inferred.episode,
-    confidence: inferred.confidence,
+    cleanedTitle: inferred?.cleanedTitle ?? (tab.title ?? ''),
+    mediaType: inferred?.mediaType ?? 'unknown',
+    season: inferred?.season ?? null,
+    episode: inferred?.episode ?? null,
+    confidence: inferred?.confidence ?? 0,
     startTime: now
   });
 }
