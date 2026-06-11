@@ -1,12 +1,14 @@
+import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from './config.js';
+import type { AuthSession, AuthUser, MediaType, OAuthProvider, WatchRecord } from './types.js';
+
 const HISTORY_KEY = 'watchHistory';
 const ENABLED_KEY = 'trackingEnabled';
 const HEARTBEAT_ALARM = 'heartbeat';
+const AUTH_SESSION_KEY = 'supabaseAuthSession';
 
 const MIN_DURATION_SEC = 10;
 const MERGE_GAP_MS = 5 * 60 * 1000;
 const HEARTBEAT_MINUTES = 0.08;
-
-type MediaType = 'anime' | 'movie' | 'unknown';
 
 interface EpisodeHint {
   season: number | null;
@@ -36,27 +38,30 @@ interface ActiveSession {
   videoDurationSec?: number | null;
 }
 
-interface WatchRecord {
-  id: string;
-  tabId: number;
-  url: string;
-  hostname: string;
-  rawTitle: string;
-  title: string;
-  mediaType: MediaType;
-  season: number | null;
-  episode: number | null;
-  confidence: number;
-  startedAt: number;
-  endedAt: number;
-  durationSec: number;
-  lastPlaybackTime?: number;
-  videoDurationSec?: number | null;
-}
-
 interface VideoPlaybackInfo {
   currentTimeSec: number;
   durationSec: number | null;
+}
+
+interface CloudWatchRecord {
+  id: string;
+  user_id: string;
+  client_record_id: string;
+  url: string;
+  hostname: string;
+  raw_title: string;
+  title: string;
+  media_type: MediaType;
+  season: number | null;
+  episode: number | null;
+  confidence: number;
+  started_at: string;
+  ended_at: string;
+  duration_sec: number;
+  last_playback_time: number | null;
+  video_duration_sec: number | null;
+  identity_key: string;
+  updated_at: string;
 }
 
 async function restorePlaybackInTab(tabId: number, resumeAtSec: number): Promise<void> {
@@ -172,6 +177,365 @@ async function getStorage<T>(key: string, fallback: T): Promise<T> {
 
 async function setStorage<T>(key: string, value: T): Promise<void> {
   await chrome.storage.local.set({ [key]: value });
+}
+
+function isSupabaseAuthConfigured(): boolean {
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+    return false;
+  }
+
+  return /^https?:\/\//i.test(SUPABASE_URL);
+}
+
+function parseOAuthCallbackFragment(callbackUrl: string): Record<string, string> {
+  const hashIndex = callbackUrl.indexOf('#');
+  if (hashIndex < 0) {
+    return {};
+  }
+
+  const fragment = callbackUrl.slice(hashIndex + 1);
+  const params = new URLSearchParams(fragment);
+  const output: Record<string, string> = {};
+
+  params.forEach((value, key) => {
+    output[key] = value;
+  });
+
+  return output;
+}
+
+async function fetchSupabaseUser(accessToken: string): Promise<AuthUser | undefined> {
+  if (!isSupabaseAuthConfigured()) {
+    return undefined;
+  }
+
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    method: 'GET',
+    headers: {
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+      Authorization: `Bearer ${accessToken}`
+    }
+  });
+
+  if (!response.ok) {
+    return undefined;
+  }
+
+  const data = (await response.json()) as { id?: string; email?: string };
+  if (!data?.id) {
+    return undefined;
+  }
+
+  return {
+    id: data.id,
+    email: data.email
+  };
+}
+
+async function signInWithSupabaseProvider(provider: OAuthProvider): Promise<AuthSession> {
+  if (!isSupabaseAuthConfigured()) {
+    throw new Error('Supabase auth is not configured in background.ts');
+  }
+
+  const extensionRedirectUrl = chrome.identity.getRedirectURL('supabase-auth');
+  const authUrl = new URL(`${SUPABASE_URL}/auth/v1/authorize`);
+  authUrl.searchParams.set('provider', provider);
+  authUrl.searchParams.set('redirect_to', extensionRedirectUrl);
+
+  const callbackUrl = await chrome.identity.launchWebAuthFlow({
+    url: authUrl.toString(),
+    interactive: true
+  });
+
+  if (!callbackUrl) {
+    throw new Error('Authentication was cancelled');
+  }
+
+  const params = parseOAuthCallbackFragment(callbackUrl);
+  const accessToken = params.access_token;
+  const refreshToken = params.refresh_token;
+  const expiresIn = Number(params.expires_in || 0);
+
+  if (!accessToken) {
+    throw new Error('No access token returned by Supabase');
+  }
+
+  const expiresAt = Date.now() + Math.max(0, expiresIn) * 1000;
+  const user = await fetchSupabaseUser(accessToken);
+
+  const session: AuthSession = {
+    accessToken,
+    refreshToken,
+    expiresAt,
+    tokenType: params.token_type,
+    user
+  };
+
+  await setStorage(AUTH_SESSION_KEY, session);
+  return session;
+}
+
+async function refreshSupabaseSessionIfNeeded(session: AuthSession): Promise<AuthSession | null> {
+  if (!isSupabaseAuthConfigured()) {
+    return null;
+  }
+
+  const now = Date.now();
+  if (session.expiresAt > now + 60_000) {
+    return session;
+  }
+
+  if (!session.refreshToken) {
+    return null;
+  }
+
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ refresh_token: session.refreshToken })
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data = (await response.json()) as {
+    access_token?: string;
+    refresh_token?: string;
+    expires_in?: number;
+    token_type?: string;
+  };
+
+  if (!data?.access_token) {
+    return null;
+  }
+
+  const refreshed: AuthSession = {
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token ?? session.refreshToken,
+    expiresAt: Date.now() + Math.max(0, Number(data.expires_in ?? 0)) * 1000,
+    tokenType: data.token_type ?? session.tokenType,
+    user: await fetchSupabaseUser(data.access_token)
+  };
+
+  await setStorage(AUTH_SESSION_KEY, refreshed);
+  return refreshed;
+}
+
+async function getValidSupabaseSession(): Promise<AuthSession | null> {
+  const stored = await getStorage<AuthSession | null>(AUTH_SESSION_KEY, null);
+  if (!stored?.accessToken) {
+    return null;
+  }
+
+  const maybeRefreshed = await refreshSupabaseSessionIfNeeded(stored);
+  if (!maybeRefreshed) {
+    return null;
+  }
+
+  return maybeRefreshed;
+}
+
+async function clearSupabaseSession(): Promise<void> {
+  await setStorage(AUTH_SESSION_KEY, null);
+}
+
+function getSupabaseHeaders(session: AuthSession, extra?: Record<string, string>): Record<string, string> {
+  return {
+    apikey: SUPABASE_PUBLISHABLE_KEY,
+    Authorization: `Bearer ${session.accessToken}`,
+    ...extra
+  };
+}
+
+function dateFromMillis(timestamp: number): string {
+  return new Date(timestamp).toISOString();
+}
+
+function millisFromDate(value: string): number {
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : Date.now();
+}
+
+function ensureRecordIdentity(record: WatchRecord): WatchRecord {
+  const identityKey = record.identityKey || getRecordIdentity(record);
+  return {
+    ...record,
+    identityKey,
+    syncStatus: record.syncStatus ?? 'pending',
+    updatedAt: record.updatedAt ?? Date.now()
+  };
+}
+
+function toCloudRecord(record: WatchRecord, userId: string): Omit<CloudWatchRecord, 'id' | 'updated_at'> {
+  const withIdentity = ensureRecordIdentity(record);
+  return {
+    user_id: userId,
+    client_record_id: withIdentity.id,
+    url: withIdentity.url,
+    hostname: withIdentity.hostname,
+    raw_title: withIdentity.rawTitle,
+    title: withIdentity.title,
+    media_type: withIdentity.mediaType,
+    season: withIdentity.season,
+    episode: withIdentity.episode,
+    confidence: withIdentity.confidence,
+    started_at: dateFromMillis(withIdentity.startedAt),
+    ended_at: dateFromMillis(withIdentity.endedAt),
+    duration_sec: Math.max(0, withIdentity.durationSec || 0),
+    last_playback_time: withIdentity.lastPlaybackTime ?? null,
+    video_duration_sec: withIdentity.videoDurationSec ?? null,
+    identity_key: withIdentity.identityKey as string
+  };
+}
+
+function fromCloudRecord(record: CloudWatchRecord): WatchRecord {
+  return {
+    id: record.client_record_id || record.id,
+    tabId: -1,
+    url: record.url,
+    hostname: record.hostname,
+    rawTitle: record.raw_title,
+    title: record.title,
+    mediaType: record.media_type,
+    season: record.season,
+    episode: record.episode,
+    confidence: record.confidence,
+    startedAt: millisFromDate(record.started_at),
+    endedAt: millisFromDate(record.ended_at),
+    durationSec: Math.max(0, record.duration_sec || 0),
+    lastPlaybackTime: record.last_playback_time ?? undefined,
+    videoDurationSec: record.video_duration_sec,
+    identityKey: record.identity_key,
+    syncStatus: 'synced',
+    cloudId: record.id,
+    updatedAt: millisFromDate(record.updated_at)
+  };
+}
+
+function mergeForCloud(base: WatchRecord, incoming: WatchRecord): WatchRecord {
+  const output = { ...ensureRecordIdentity(base) };
+  const next = ensureRecordIdentity(incoming);
+
+  output.startedAt = Math.min(output.startedAt, next.startedAt);
+  output.endedAt = Math.max(output.endedAt, next.endedAt);
+  output.durationSec = Math.max(output.durationSec || 0, next.durationSec || 0);
+  output.lastPlaybackTime = Math.max(output.lastPlaybackTime ?? 0, next.lastPlaybackTime ?? 0);
+
+  const mergedVideoDuration = Math.max(output.videoDurationSec ?? 0, next.videoDurationSec ?? 0);
+  output.videoDurationSec = mergedVideoDuration > 0 ? mergedVideoDuration : null;
+
+  if (output.mediaType === 'unknown' && next.mediaType !== 'unknown') {
+    output.mediaType = next.mediaType;
+  }
+  if (output.season === null && next.season !== null) {
+    output.season = next.season;
+  }
+  if (output.episode === null && next.episode !== null) {
+    output.episode = next.episode;
+  }
+  if ((output.title || '').length < (next.title || '').length) {
+    output.title = next.title;
+  }
+  if ((output.rawTitle || '').length < (next.rawTitle || '').length) {
+    output.rawTitle = next.rawTitle;
+  }
+
+  output.url = next.url || output.url;
+  output.hostname = next.hostname || output.hostname;
+  output.confidence = Math.max(output.confidence || 0, next.confidence || 0);
+  output.cloudId = next.cloudId ?? output.cloudId;
+  output.syncStatus = next.syncStatus === 'failed' ? 'failed' : output.syncStatus;
+  output.syncError = next.syncError ?? output.syncError;
+  output.updatedAt = Math.max(output.updatedAt ?? 0, next.updatedAt ?? 0) || Date.now();
+  return output;
+}
+
+function mergeCloudAndLocal(localHistory: WatchRecord[], cloudHistory: WatchRecord[]): WatchRecord[] {
+  const byKey = new Map<string, WatchRecord>();
+
+  for (const record of [...cloudHistory, ...localHistory]) {
+    const withIdentity = ensureRecordIdentity(record);
+    const key = withIdentity.identityKey as string;
+    const existing = byKey.get(key);
+    byKey.set(key, existing ? mergeForCloud(existing, withIdentity) : withIdentity);
+  }
+
+  return [...byKey.values()].sort((a, b) => a.startedAt - b.startedAt);
+}
+
+async function fetchCloudRecords(session: AuthSession): Promise<WatchRecord[]> {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/watch_records?select=*&order=started_at.desc`, {
+    method: 'GET',
+    headers: getSupabaseHeaders(session)
+  });
+
+  if (!response.ok) {
+    throw new Error(`Cloud history fetch failed: ${response.status}`);
+  }
+
+  const rows = (await response.json()) as CloudWatchRecord[];
+  return rows.map(fromCloudRecord);
+}
+
+async function fetchCloudRecordByIdentity(session: AuthSession, identityKey: string): Promise<WatchRecord | null> {
+  const filter = `identity_key=eq.${encodeURIComponent(identityKey)}`;
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/watch_records?select=*&${filter}&limit=1`, {
+    method: 'GET',
+    headers: getSupabaseHeaders(session)
+  });
+
+  if (!response.ok) {
+    throw new Error(`Cloud record fetch failed: ${response.status}`);
+  }
+
+  const rows = (await response.json()) as CloudWatchRecord[];
+  return rows[0] ? fromCloudRecord(rows[0]) : null;
+}
+
+async function upsertCloudRecord(session: AuthSession, record: WatchRecord): Promise<WatchRecord> {
+  if (!session.user?.id) {
+    throw new Error('Cannot sync without a Supabase user');
+  }
+
+  const local = ensureRecordIdentity(record);
+  const existing = await fetchCloudRecordByIdentity(session, local.identityKey as string);
+  const merged = existing ? mergeForCloud(existing, local) : local;
+  const body = toCloudRecord(merged, session.user.id);
+
+  const target = existing?.cloudId
+    ? `${SUPABASE_URL}/rest/v1/watch_records?id=eq.${encodeURIComponent(existing.cloudId)}`
+    : `${SUPABASE_URL}/rest/v1/watch_records`;
+
+  const response = await fetch(target, {
+    method: existing ? 'PATCH' : 'POST',
+    headers: getSupabaseHeaders(session, {
+      'Content-Type': 'application/json',
+      Prefer: 'return=representation'
+    }),
+    body: JSON.stringify(body)
+  });
+
+  if (!response.ok) {
+    throw new Error(`Cloud record sync failed: ${response.status}`);
+  }
+
+  const rows = (await response.json()) as CloudWatchRecord[];
+  return rows[0] ? fromCloudRecord(rows[0]) : { ...merged, syncStatus: 'synced' };
+}
+
+async function deleteCloudRecords(session: AuthSession): Promise<void> {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/watch_records?id=not.is.null`, {
+    method: 'DELETE',
+    headers: getSupabaseHeaders(session)
+  });
+
+  if (!response.ok) {
+    throw new Error(`Cloud clear failed: ${response.status}`);
+  }
 }
 
 function getHostname(urlString: string): string {
@@ -421,6 +785,17 @@ function mergeIntoRecord(base: WatchRecord, incoming: WatchRecord): WatchRecord 
   base.url = incoming.url;
   base.hostname = incoming.hostname;
   base.confidence = Math.max(base.confidence, incoming.confidence);
+  base.identityKey = incoming.identityKey ?? base.identityKey ?? getRecordIdentity(base);
+  base.cloudId = incoming.cloudId ?? base.cloudId;
+  base.updatedAt = Math.max(base.updatedAt ?? 0, incoming.updatedAt ?? 0) || Date.now();
+
+  if (base.syncStatus !== 'pending') {
+    base.syncStatus = incoming.syncStatus ?? base.syncStatus;
+  }
+  if (incoming.syncError) {
+    base.syncError = incoming.syncError;
+  }
+
   return base;
 }
 
@@ -430,17 +805,69 @@ function compactHistory(history: WatchRecord[]): WatchRecord[] {
   const sorted = [...history].sort((a, b) => a.startedAt - b.startedAt);
 
   for (const record of sorted) {
-    const key = getRecordIdentity(record);
+    const withIdentity = ensureRecordIdentity(record);
+    const key = withIdentity.identityKey as string;
     const existing = byKey.get(key);
     if (!existing) {
-      byKey.set(key, { ...record });
+      byKey.set(key, { ...withIdentity });
       orderedKeys.push(key);
     } else {
-      mergeIntoRecord(existing, record);
+      mergeIntoRecord(existing, withIdentity);
     }
   }
 
   return orderedKeys.map((key) => byKey.get(key) as WatchRecord);
+}
+
+async function syncPendingRecords(): Promise<{ ok: boolean; synced: number; failed: number; error?: string }> {
+  const session = await getValidSupabaseSession();
+  if (!session?.user?.id) {
+    return { ok: false, synced: 0, failed: 0, error: 'Not authenticated' };
+  }
+
+  const history = compactHistory(await getStorage<WatchRecord[]>(HISTORY_KEY, []));
+  let synced = 0;
+  let failed = 0;
+  const nextHistory: WatchRecord[] = [];
+
+  for (const record of history) {
+    const candidate = ensureRecordIdentity(record);
+    if (candidate.syncStatus === 'synced') {
+      nextHistory.push(candidate);
+      continue;
+    }
+
+    try {
+      const syncedRecord = await upsertCloudRecord(session, { ...candidate, syncStatus: 'syncing' });
+      nextHistory.push({ ...mergeForCloud(candidate, syncedRecord), syncStatus: 'synced', syncError: undefined });
+      synced += 1;
+    } catch (error) {
+      nextHistory.push({
+        ...candidate,
+        syncStatus: 'failed',
+        syncError: error instanceof Error ? error.message : 'Cloud sync failed'
+      });
+      failed += 1;
+    }
+  }
+
+  await setStorage(HISTORY_KEY, compactHistory(nextHistory));
+  return { ok: failed === 0, synced, failed, error: failed > 0 ? 'Some records failed to sync' : undefined };
+}
+
+async function refreshHistoryFromCloud(): Promise<WatchRecord[]> {
+  const localHistory = compactHistory(await getStorage<WatchRecord[]>(HISTORY_KEY, []));
+  const session = await getValidSupabaseSession();
+  if (!session?.user?.id) {
+    await setStorage(HISTORY_KEY, localHistory);
+    return localHistory;
+  }
+
+  await syncPendingRecords();
+  const cloudHistory = await fetchCloudRecords(session);
+  const merged = compactHistory(mergeCloudAndLocal(localHistory, cloudHistory));
+  await setStorage(HISTORY_KEY, merged);
+  return merged;
 }
 
 async function saveRecord(record: WatchRecord): Promise<void> {
@@ -451,7 +878,12 @@ async function saveRecord(record: WatchRecord): Promise<void> {
   console.debug(`[MovieTrack] Saving record (${record.durationSec}s):`, record.title);
 
   const history = await getStorage<WatchRecord[]>(HISTORY_KEY, []);
-  history.push(record);
+  history.push({
+    ...ensureRecordIdentity(record),
+    syncStatus: 'pending',
+    syncError: undefined,
+    updatedAt: Date.now()
+  });
 
   const compacted = compactHistory(history);
 
@@ -460,6 +892,7 @@ async function saveRecord(record: WatchRecord): Promise<void> {
   }
 
   await setStorage(HISTORY_KEY, compacted);
+  void syncPendingRecords();
 }
 
 async function finalizeSession(tabId: number, endTime = Date.now()): Promise<void> {
@@ -634,18 +1067,79 @@ chrome.windows.onFocusChanged.addListener(async (windowId) => {
 
 chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
   (async () => {
-    const payload = message as { type?: string; enabled?: boolean };
+    const payload = message as {
+      type?: string;
+      enabled?: boolean;
+      provider?: OAuthProvider;
+      scope?: 'local' | 'cloudAndLocal';
+    };
+
+    if (payload?.type === 'getAuthStatus') {
+      const session = await getValidSupabaseSession();
+      sendResponse({
+        ok: true,
+        configured: isSupabaseAuthConfigured(),
+        signedIn: Boolean(session),
+        user: session?.user ?? null
+      });
+      return;
+    }
+
+    if (payload?.type === 'signIn') {
+      const provider = payload.provider ?? 'google';
+      if (provider !== 'google' && provider !== 'github') {
+        sendResponse({ ok: false, error: 'Unsupported provider' });
+        return;
+      }
+
+      try {
+        const session = await signInWithSupabaseProvider(provider);
+        await syncPendingRecords();
+        sendResponse({ ok: true, signedIn: true, user: session.user ?? null });
+      } catch (error) {
+        sendResponse({
+          ok: false,
+          error: error instanceof Error ? error.message : 'Authentication failed'
+        });
+      }
+      return;
+    }
+
+    if (payload?.type === 'syncNow') {
+      const result = await syncPendingRecords();
+      sendResponse(result);
+      return;
+    }
+
+    if (payload?.type === 'signOut') {
+      await clearSupabaseSession();
+      sendResponse({ ok: true, signedIn: false });
+      return;
+    }
+
+    if (payload?.type === 'getAccessToken') {
+      const session = await getValidSupabaseSession();
+      if (!session) {
+        sendResponse({ ok: false, error: 'Not authenticated' });
+        return;
+      }
+      sendResponse({ ok: true, accessToken: session.accessToken });
+      return;
+    }
 
     if (payload?.type === 'getHistory') {
-      const [history, enabled] = await Promise.all([
-        getStorage<WatchRecord[]>(HISTORY_KEY, []),
-        getStorage<boolean>(ENABLED_KEY, true)
-      ]);
+      const enabled = await getStorage<boolean>(ENABLED_KEY, true);
+      let compacted: WatchRecord[];
 
-      const compacted = compactHistory(history);
-      const changed = compacted.length !== history.length;
-      if (changed) {
-        await setStorage(HISTORY_KEY, compacted);
+      try {
+        compacted = await refreshHistoryFromCloud();
+      } catch {
+        const history = await getStorage<WatchRecord[]>(HISTORY_KEY, []);
+        compacted = compactHistory(history);
+        const changed = compacted.length !== history.length;
+        if (changed) {
+          await setStorage(HISTORY_KEY, compacted);
+        }
       }
 
       sendResponse({ ok: true, history: compacted, enabled });
@@ -670,6 +1164,13 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
     }
 
     if (payload?.type === 'clearHistory') {
+      if (payload.scope === 'cloudAndLocal') {
+        const session = await getValidSupabaseSession();
+        if (session) {
+          await deleteCloudRecords(session);
+        }
+      }
+
       await setStorage(HISTORY_KEY, [] as WatchRecord[]);
       sendResponse({ ok: true });
       return;

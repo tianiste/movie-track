@@ -1,3 +1,5 @@
+type SyncStatus = 'pending' | 'syncing' | 'synced' | 'failed';
+
 interface WatchRecord {
   id: string;
   tabId: number;
@@ -14,12 +16,27 @@ interface WatchRecord {
   durationSec: number;
   lastPlaybackTime?: number;
   videoDurationSec?: number | null;
+  syncStatus?: SyncStatus;
+  syncError?: string;
 }
 
 interface GetHistoryResponse {
   ok: boolean;
   history: WatchRecord[];
   enabled: boolean;
+}
+
+interface AuthUser {
+  id: string;
+  email?: string;
+}
+
+interface AuthStatusResponse {
+  ok: boolean;
+  configured: boolean;
+  signedIn: boolean;
+  user?: AuthUser | null;
+  error?: string;
 }
 
 const listEl = document.getElementById('list') as HTMLElement;
@@ -30,8 +47,13 @@ const filterEl = document.getElementById('typeFilter') as HTMLSelectElement;
 const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
 const clearBtn = document.getElementById('clearBtn') as HTMLButtonElement;
 const enabledToggle = document.getElementById('enabledToggle') as HTMLInputElement;
+const authStatusTextEl = document.getElementById('authStatusText') as HTMLElement;
+const syncStatusTextEl = document.getElementById('syncStatusText') as HTMLElement;
+const signInBtn = document.getElementById('signInBtn') as HTMLButtonElement;
+const signOutBtn = document.getElementById('signOutBtn') as HTMLButtonElement;
 
 let allRecords: WatchRecord[] = [];
+let isSignedIn = false;
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -64,6 +86,7 @@ function render(): void {
   const totalSeconds = records.reduce((sum, item) => sum + (item.durationSec || 0), 0);
   totalItemsEl.textContent = String(records.length);
   totalHoursEl.textContent = (totalSeconds / 3600).toFixed(1);
+  renderSyncSummary();
 
   if (records.length === 0) {
     const empty = document.createElement('p');
@@ -138,6 +161,28 @@ function render(): void {
   listEl.append(fragment);
 }
 
+function renderSyncSummary(): void {
+  if (!isSignedIn) {
+    syncStatusTextEl.textContent = 'Signed out: local only';
+    return;
+  }
+
+  const pending = allRecords.filter((record) => record.syncStatus === 'pending' || record.syncStatus === 'syncing').length;
+  const failed = allRecords.filter((record) => record.syncStatus === 'failed').length;
+
+  if (failed > 0) {
+    syncStatusTextEl.textContent = `${failed} sync failed`;
+    return;
+  }
+
+  if (pending > 0) {
+    syncStatusTextEl.textContent = `${pending} sync pending`;
+    return;
+  }
+
+  syncStatusTextEl.textContent = 'Synced';
+}
+
 async function loadData(): Promise<void> {
   const response = (await chrome.runtime.sendMessage({ type: 'getHistory' })) as GetHistoryResponse;
   if (!response?.ok) {
@@ -163,12 +208,16 @@ function exportData(): void {
 }
 
 async function clearData(): Promise<void> {
-  const shouldClear = confirm('Clear all tracked history?');
+  const message = isSignedIn ? 'Clear cloud and local tracked history?' : 'Clear local tracked history?';
+  const shouldClear = confirm(message);
   if (!shouldClear) {
     return;
   }
 
-  const response = (await chrome.runtime.sendMessage({ type: 'clearHistory' })) as { ok: boolean };
+  const response = (await chrome.runtime.sendMessage({
+    type: 'clearHistory',
+    scope: isSignedIn ? 'cloudAndLocal' : 'local'
+  })) as { ok: boolean };
   if (response?.ok) {
     allRecords = [];
     render();
@@ -179,13 +228,80 @@ async function setEnabled(enabled: boolean): Promise<void> {
   await chrome.runtime.sendMessage({ type: 'setEnabled', enabled });
 }
 
+function setAuthUiState(response: AuthStatusResponse): void {
+  isSignedIn = Boolean(response.signedIn);
+
+  if (!response.configured) {
+    authStatusTextEl.textContent = 'Set Supabase public config';
+    syncStatusTextEl.textContent = 'Sync disabled';
+    signInBtn.disabled = true;
+    signOutBtn.disabled = true;
+    return;
+  }
+
+  if (response.signedIn) {
+    authStatusTextEl.textContent = response.user?.email || 'Signed in';
+    signInBtn.disabled = true;
+    signOutBtn.disabled = false;
+    renderSyncSummary();
+    return;
+  }
+
+  authStatusTextEl.textContent = 'Not signed in';
+  signInBtn.disabled = false;
+  signOutBtn.disabled = true;
+  renderSyncSummary();
+}
+
+async function loadAuthStatus(): Promise<void> {
+  const response = (await chrome.runtime.sendMessage({ type: 'getAuthStatus' })) as AuthStatusResponse;
+  if (!response?.ok) {
+    authStatusTextEl.textContent = 'Auth status unavailable';
+    signOutBtn.disabled = true;
+    return;
+  }
+
+  setAuthUiState(response);
+}
+
+async function signIn(): Promise<void> {
+  signInBtn.disabled = true;
+  const response = (await chrome.runtime.sendMessage({
+    type: 'signIn',
+    provider: 'google'
+  })) as AuthStatusResponse;
+
+  if (!response?.ok) {
+    authStatusTextEl.textContent = response?.error || 'Sign-in failed';
+    signInBtn.disabled = false;
+    return;
+  }
+
+  await loadAuthStatus();
+  await loadData();
+}
+
+async function signOut(): Promise<void> {
+  signOutBtn.disabled = true;
+  await chrome.runtime.sendMessage({ type: 'signOut' });
+  await loadAuthStatus();
+  await loadData();
+}
+
 filterEl.addEventListener('change', render);
 exportBtn.addEventListener('click', exportData);
 clearBtn.addEventListener('click', clearData);
 enabledToggle.addEventListener('change', () => {
   void setEnabled(enabledToggle.checked);
 });
+signInBtn.addEventListener('click', () => {
+  void signIn();
+});
+signOutBtn.addEventListener('click', () => {
+  void signOut();
+});
 
 void loadData();
+void loadAuthStatus();
 
 export {};

@@ -6,7 +6,12 @@ const filterEl = document.getElementById('typeFilter');
 const exportBtn = document.getElementById('exportBtn');
 const clearBtn = document.getElementById('clearBtn');
 const enabledToggle = document.getElementById('enabledToggle');
+const authStatusTextEl = document.getElementById('authStatusText');
+const syncStatusTextEl = document.getElementById('syncStatusText');
+const signInBtn = document.getElementById('signInBtn');
+const signOutBtn = document.getElementById('signOutBtn');
 let allRecords = [];
+let isSignedIn = false;
 function formatDuration(seconds) {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
@@ -35,6 +40,7 @@ function render() {
     const totalSeconds = records.reduce((sum, item) => sum + (item.durationSec || 0), 0);
     totalItemsEl.textContent = String(records.length);
     totalHoursEl.textContent = (totalSeconds / 3600).toFixed(1);
+    renderSyncSummary();
     if (records.length === 0) {
         const empty = document.createElement('p');
         empty.textContent = 'No records yet.';
@@ -96,6 +102,23 @@ function render() {
     }
     listEl.append(fragment);
 }
+function renderSyncSummary() {
+    if (!isSignedIn) {
+        syncStatusTextEl.textContent = 'Signed out: local only';
+        return;
+    }
+    const pending = allRecords.filter((record) => record.syncStatus === 'pending' || record.syncStatus === 'syncing').length;
+    const failed = allRecords.filter((record) => record.syncStatus === 'failed').length;
+    if (failed > 0) {
+        syncStatusTextEl.textContent = `${failed} sync failed`;
+        return;
+    }
+    if (pending > 0) {
+        syncStatusTextEl.textContent = `${pending} sync pending`;
+        return;
+    }
+    syncStatusTextEl.textContent = 'Synced';
+}
 async function loadData() {
     const response = (await chrome.runtime.sendMessage({ type: 'getHistory' }));
     if (!response?.ok) {
@@ -116,11 +139,15 @@ function exportData() {
     URL.revokeObjectURL(url);
 }
 async function clearData() {
-    const shouldClear = confirm('Clear all tracked history?');
+    const message = isSignedIn ? 'Clear cloud and local tracked history?' : 'Clear local tracked history?';
+    const shouldClear = confirm(message);
     if (!shouldClear) {
         return;
     }
-    const response = (await chrome.runtime.sendMessage({ type: 'clearHistory' }));
+    const response = (await chrome.runtime.sendMessage({
+        type: 'clearHistory',
+        scope: isSignedIn ? 'cloudAndLocal' : 'local'
+    }));
     if (response?.ok) {
         allRecords = [];
         render();
@@ -129,12 +156,69 @@ async function clearData() {
 async function setEnabled(enabled) {
     await chrome.runtime.sendMessage({ type: 'setEnabled', enabled });
 }
+function setAuthUiState(response) {
+    isSignedIn = Boolean(response.signedIn);
+    if (!response.configured) {
+        authStatusTextEl.textContent = 'Set Supabase public config';
+        syncStatusTextEl.textContent = 'Sync disabled';
+        signInBtn.disabled = true;
+        signOutBtn.disabled = true;
+        return;
+    }
+    if (response.signedIn) {
+        authStatusTextEl.textContent = response.user?.email || 'Signed in';
+        signInBtn.disabled = true;
+        signOutBtn.disabled = false;
+        renderSyncSummary();
+        return;
+    }
+    authStatusTextEl.textContent = 'Not signed in';
+    signInBtn.disabled = false;
+    signOutBtn.disabled = true;
+    renderSyncSummary();
+}
+async function loadAuthStatus() {
+    const response = (await chrome.runtime.sendMessage({ type: 'getAuthStatus' }));
+    if (!response?.ok) {
+        authStatusTextEl.textContent = 'Auth status unavailable';
+        signOutBtn.disabled = true;
+        return;
+    }
+    setAuthUiState(response);
+}
+async function signIn() {
+    signInBtn.disabled = true;
+    const response = (await chrome.runtime.sendMessage({
+        type: 'signIn',
+        provider: 'google'
+    }));
+    if (!response?.ok) {
+        authStatusTextEl.textContent = response?.error || 'Sign-in failed';
+        signInBtn.disabled = false;
+        return;
+    }
+    await loadAuthStatus();
+    await loadData();
+}
+async function signOut() {
+    signOutBtn.disabled = true;
+    await chrome.runtime.sendMessage({ type: 'signOut' });
+    await loadAuthStatus();
+    await loadData();
+}
 filterEl.addEventListener('change', render);
 exportBtn.addEventListener('click', exportData);
 clearBtn.addEventListener('click', clearData);
 enabledToggle.addEventListener('change', () => {
     void setEnabled(enabledToggle.checked);
 });
+signInBtn.addEventListener('click', () => {
+    void signIn();
+});
+signOutBtn.addEventListener('click', () => {
+    void signOut();
+});
 void loadData();
+void loadAuthStatus();
 export {};
 //# sourceMappingURL=popup.js.map

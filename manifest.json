@@ -3,7 +3,7 @@
   "name": "MovieTrack",
   "version": "0.1.0",
   "description": "Track anime and movie watching activity from tab metadata (title + URL).",
-  "permissions": ["tabs", "storage", "alarms", "scripting"],
+  "permissions": ["tabs", "storage", "alarms", "scripting", "identity"],
   "host_permissions": ["<all_urls>"],
   "icons": {
     "16": "icons/icon-v3-16.png",
