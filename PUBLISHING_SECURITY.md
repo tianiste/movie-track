@@ -1,0 +1,45 @@
+# MovieTrack Publishing Security Notes
+
+## Chrome Web Store Data Disclosure
+
+MovieTrack handles sensitive user data under Chrome Web Store policy because it records browsing/video watch activity and uses Google login. The listing must disclose:
+
+- Website content / browsing activity: trimmed video URL, hostname, title, watch timestamps, progress.
+- Authentication information: Google/Supabase session used for account sync.
+- Purpose: watch history and cross-device progress sync only.
+- No sale, ads, or marketing transfer.
+
+## Permission Justification
+
+Required permissions:
+
+- `tabs`: read active tab URL/title/audible state.
+- `storage`: save local records, consent flag, tracking setting, and Supabase session.
+- `alarms`: run periodic active-tab heartbeat.
+- `scripting`: read generic `<video>` playback time and resume progress when allowed by site.
+- `identity`: run Google/Supabase sign-in flow.
+- `<all_urls>`: support video tracking across user-selected streaming/video sites.
+
+`<all_urls>` is broad but directly tied to MovieTrack's single purpose. The popup now gates tracking behind explicit consent.
+
+## Supabase GraphQL Advisor
+
+Current decision: accept the `pg_graphql_authenticated_table_exposed` advisor warning for now.
+
+Reason:
+
+- MovieTrack needs `authenticated` `SELECT` on `public.watch_records` for Supabase REST/Data API sync.
+- RLS is enabled and forced.
+- Policies restrict every operation to `(select auth.uid()) = user_id`.
+- `anon` has no table grants.
+
+If future publishing review requires removing the warning, disable GraphQL exposure at the Supabase project/API level or move the public REST API shape to a dedicated exposed schema while keeping GraphQL unavailable.
+
+## Publish Checklist
+
+- Privacy policy URL added in Chrome Web Store Developer Dashboard.
+- Privacy practices form matches `PRIVACY_POLICY.md`.
+- No `MovieTrack.pem`, `.env`, service role key, DB password, or Google secret committed.
+- Fresh install tested from packaged ZIP.
+- Two-account RLS test completed.
+- Logout/token-expiry behavior tested.

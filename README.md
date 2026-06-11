@@ -6,10 +6,12 @@ Tracks what you watch using tab metadata (page title + URL) for anime/movie page
 
 - Runs in the background and watches the active tab.
 - Detects likely anime/movie sessions based on URL + title patterns.
-- Stores watch records locally (`chrome.storage.local`) first.
+- Requires first-run privacy consent before tracking starts.
+- Stores minimized watch records locally (`chrome.storage.local`) first.
 - Syncs records to Supabase when signed in.
 - Shows records in popup UI.
 - Lets you export records as JSON.
+- Lets signed-in users delete synced cloud data from the popup.
 
 ## TypeScript workflow
 
@@ -37,6 +39,8 @@ TypeScript sources live in `src/background.ts` and `src/popup.ts`.
 - This tracks tab metadata plus generic `<video>` playback time when script injection is allowed.
 - It logs a record after at least 10 seconds of watch time.
 - Data stays local while signed out, then syncs to the user's Supabase account after Google login.
+- URLs are trimmed before saving. YouTube records keep only the video ID.
+- Full page content, cookies, passwords, screenshots, form data, and payment data are not collected.
 
 ## Supabase Auth + Sync
 
@@ -63,3 +67,10 @@ Important:
 - Never put DB passwords or Google client secrets in the extension.
 - User data security depends on RLS policies in `supabase/migrations`.
 - No custom backend is required for current account sync.
+
+## Publish checklist
+
+- Host `PRIVACY_POLICY.md` or equivalent privacy policy at a public URL and add it in the Chrome Web Store Developer Dashboard.
+- Match Chrome Web Store privacy disclosures to `PRIVACY_POLICY.md`.
+- Use `PUBLISHING_SECURITY.md` for permission and Supabase GraphQL advisor justification.
+- Package from this directory, not the parent folder, so `MovieTrack.pem` is not included.
