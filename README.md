@@ -6,7 +6,8 @@ Tracks what you watch using tab metadata (page title + URL) for anime/movie page
 
 - Runs in the background and watches the active tab.
 - Detects likely anime/movie sessions based on URL + title patterns.
-- Stores watch records locally (`chrome.storage.local`).
+- Stores watch records locally (`chrome.storage.local`) first.
+- Syncs records to Supabase when signed in.
 - Shows records in popup UI.
 - Lets you export records as JSON.
 
@@ -33,6 +34,31 @@ TypeScript sources live in `src/background.ts` and `src/popup.ts`.
 
 ## Notes
 
-- This tracks tab metadata only (no video player access, no page scraping).
-- It logs a record after at least ~20 seconds of watch time.
-- Data stays on your machine unless you export it.
+- This tracks tab metadata plus generic `<video>` playback time when script injection is allowed.
+- It logs a record after at least 10 seconds of watch time.
+- Data stays local while signed out, then syncs to the user's Supabase account after Google login.
+
+## Supabase Auth + Sync
+
+The popup includes **Sign in with Google** and stores a Supabase session in `chrome.storage.local`.
+Watch history is synced through Supabase Data API with Row Level Security.
+
+1. Open `src/config.ts`.
+2. Set only public config:
+	- `SUPABASE_URL`
+	- `SUPABASE_PUBLISHABLE_KEY`
+3. Apply Supabase migrations:
+	- `supabase link --project-ref wyeqtsnjlxixbpnkimmo`
+	- `supabase db push`
+4. In Supabase Dashboard:
+	- Enable Google provider in **Authentication > Providers**.
+	- Add this redirect URL in **Authentication > URL Configuration**:
+		- `https://<your-extension-id>.chromiumapp.org/supabase-auth`
+5. Build and reload extension.
+
+Important:
+
+- Never put a Supabase `service_role` key in the extension.
+- Never put DB passwords or Google client secrets in the extension.
+- User data security depends on RLS policies in `supabase/migrations`.
+- No custom backend is required for current account sync.
