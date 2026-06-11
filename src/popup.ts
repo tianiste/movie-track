@@ -39,6 +39,12 @@ interface AuthStatusResponse {
   error?: string;
 }
 
+interface PrivacyStatusResponse {
+  ok: boolean;
+  consentAccepted: boolean;
+  enabled: boolean;
+}
+
 const listEl = document.getElementById('list') as HTMLElement;
 const template = document.getElementById('rowTemplate') as HTMLTemplateElement;
 const totalItemsEl = document.getElementById('totalItems') as HTMLElement;
@@ -47,13 +53,18 @@ const filterEl = document.getElementById('typeFilter') as HTMLSelectElement;
 const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
 const clearBtn = document.getElementById('clearBtn') as HTMLButtonElement;
 const enabledToggle = document.getElementById('enabledToggle') as HTMLInputElement;
+const consentCard = document.getElementById('consentCard') as HTMLElement;
+const acceptConsentBtn = document.getElementById('acceptConsentBtn') as HTMLButtonElement;
+const privacyLinkBtn = document.getElementById('privacyLinkBtn') as HTMLButtonElement;
 const authStatusTextEl = document.getElementById('authStatusText') as HTMLElement;
 const syncStatusTextEl = document.getElementById('syncStatusText') as HTMLElement;
 const signInBtn = document.getElementById('signInBtn') as HTMLButtonElement;
 const signOutBtn = document.getElementById('signOutBtn') as HTMLButtonElement;
+const deleteCloudBtn = document.getElementById('deleteCloudBtn') as HTMLButtonElement;
 
 let allRecords: WatchRecord[] = [];
 let isSignedIn = false;
+let hasPrivacyConsent = false;
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -194,6 +205,31 @@ async function loadData(): Promise<void> {
   render();
 }
 
+async function loadPrivacyStatus(): Promise<void> {
+  const response = (await chrome.runtime.sendMessage({ type: 'getPrivacyStatus' })) as PrivacyStatusResponse;
+  if (!response?.ok) {
+    return;
+  }
+
+  hasPrivacyConsent = Boolean(response.consentAccepted);
+  consentCard.hidden = hasPrivacyConsent;
+  enabledToggle.disabled = !hasPrivacyConsent;
+  enabledToggle.checked = Boolean(response.enabled);
+}
+
+async function acceptPrivacyConsent(): Promise<void> {
+  acceptConsentBtn.disabled = true;
+  const response = (await chrome.runtime.sendMessage({ type: 'acceptPrivacyConsent' })) as PrivacyStatusResponse;
+  if (response?.ok) {
+    hasPrivacyConsent = true;
+    consentCard.hidden = true;
+    enabledToggle.disabled = false;
+    enabledToggle.checked = Boolean(response.enabled);
+    await loadData();
+  }
+  acceptConsentBtn.disabled = false;
+}
+
 function exportData(): void {
   const data = JSON.stringify(getFilteredRecords(), null, 2);
   const blob = new Blob([data], { type: 'application/json' });
@@ -225,7 +261,17 @@ async function clearData(): Promise<void> {
 }
 
 async function setEnabled(enabled: boolean): Promise<void> {
-  await chrome.runtime.sendMessage({ type: 'setEnabled', enabled });
+  if (enabled && !hasPrivacyConsent) {
+    enabledToggle.checked = false;
+    consentCard.hidden = false;
+    return;
+  }
+
+  const response = (await chrome.runtime.sendMessage({ type: 'setEnabled', enabled })) as { ok: boolean; error?: string };
+  if (!response?.ok) {
+    enabledToggle.checked = false;
+    syncStatusTextEl.textContent = response?.error || 'Tracking unavailable';
+  }
 }
 
 function setAuthUiState(response: AuthStatusResponse): void {
@@ -236,6 +282,7 @@ function setAuthUiState(response: AuthStatusResponse): void {
     syncStatusTextEl.textContent = 'Sync disabled';
     signInBtn.disabled = true;
     signOutBtn.disabled = true;
+    deleteCloudBtn.disabled = true;
     return;
   }
 
@@ -243,6 +290,7 @@ function setAuthUiState(response: AuthStatusResponse): void {
     authStatusTextEl.textContent = response.user?.email || 'Signed in';
     signInBtn.disabled = true;
     signOutBtn.disabled = false;
+    deleteCloudBtn.disabled = false;
     renderSyncSummary();
     return;
   }
@@ -250,6 +298,7 @@ function setAuthUiState(response: AuthStatusResponse): void {
   authStatusTextEl.textContent = 'Not signed in';
   signInBtn.disabled = false;
   signOutBtn.disabled = true;
+  deleteCloudBtn.disabled = true;
   renderSyncSummary();
 }
 
@@ -288,6 +337,28 @@ async function signOut(): Promise<void> {
   await loadData();
 }
 
+async function deleteCloudData(): Promise<void> {
+  const shouldDelete = confirm('Delete all MovieTrack cloud data for this account and clear local history?');
+  if (!shouldDelete) {
+    return;
+  }
+
+  deleteCloudBtn.disabled = true;
+  const response = (await chrome.runtime.sendMessage({
+    type: 'clearHistory',
+    scope: 'cloudAndLocal'
+  })) as { ok: boolean; error?: string };
+
+  if (response?.ok) {
+    allRecords = [];
+    render();
+  } else {
+    syncStatusTextEl.textContent = response?.error || 'Delete failed';
+  }
+
+  deleteCloudBtn.disabled = !isSignedIn;
+}
+
 filterEl.addEventListener('change', render);
 exportBtn.addEventListener('click', exportData);
 clearBtn.addEventListener('click', clearData);
@@ -300,8 +371,22 @@ signInBtn.addEventListener('click', () => {
 signOutBtn.addEventListener('click', () => {
   void signOut();
 });
+deleteCloudBtn.addEventListener('click', () => {
+  void deleteCloudData();
+});
+acceptConsentBtn.addEventListener('click', () => {
+  void acceptPrivacyConsent();
+});
+privacyLinkBtn.addEventListener('click', () => {
+  void chrome.tabs.create({ url: chrome.runtime.getURL('privacy.html') });
+});
 
-void loadData();
-void loadAuthStatus();
+async function init(): Promise<void> {
+  await loadPrivacyStatus();
+  await loadData();
+  await loadAuthStatus();
+}
+
+void init();
 
 export {};

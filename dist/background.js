@@ -3,6 +3,7 @@ const HISTORY_KEY = 'watchHistory';
 const ENABLED_KEY = 'trackingEnabled';
 const HEARTBEAT_ALARM = 'heartbeat';
 const AUTH_SESSION_KEY = 'supabaseAuthSession';
+const PRIVACY_CONSENT_KEY = 'privacyConsentAccepted';
 const MIN_DURATION_SEC = 10;
 const MERGE_GAP_MS = 5 * 60 * 1000;
 const HEARTBEAT_MINUTES = 0.08;
@@ -455,6 +456,21 @@ function withResumeParam(urlString, resumeAtSec) {
     url.searchParams.set('start', String(sec));
     return url.toString();
 }
+function getStoredWatchUrl(urlString) {
+    const url = parseUrl(urlString);
+    if (!url) {
+        return urlString;
+    }
+    url.hash = '';
+    const youtubeVideoId = getYouTubeVideoId(urlString);
+    if (youtubeVideoId) {
+        const safeUrl = new URL('https://www.youtube.com/watch');
+        safeUrl.searchParams.set('v', youtubeVideoId);
+        return safeUrl.toString();
+    }
+    url.search = '';
+    return url.toString();
+}
 function normalizeTitle(title = '') {
     return title
         .replace(/\s*\|\s*[^|]+$/g, '')
@@ -522,12 +538,13 @@ function buildRecord(session) {
     const endTime = session.endTime ?? Date.now();
     const durationSec = Math.max(0, Math.round((endTime - session.startTime) / 1000));
     const lastPlaybackTime = session.lastPlaybackTime ?? durationSec;
+    const storedUrl = getStoredWatchUrl(session.url);
     return {
         id: `${session.tabId}-${session.startTime}`,
         tabId: session.tabId,
-        url: session.url,
-        hostname: getHostname(session.url),
-        rawTitle: session.title,
+        url: storedUrl,
+        hostname: getHostname(storedUrl),
+        rawTitle: session.cleanedTitle,
         title: session.cleanedTitle,
         mediaType: session.mediaType,
         season: session.season,
@@ -573,7 +590,11 @@ async function getVideoPlaybackInfo(tabId) {
     }
 }
 async function isTrackingEnabled() {
-    return await getStorage(ENABLED_KEY, true);
+    const [enabled, consentAccepted] = await Promise.all([
+        getStorage(ENABLED_KEY, false),
+        getStorage(PRIVACY_CONSENT_KEY, false)
+    ]);
+    return enabled && consentAccepted;
 }
 function getRecordIdentity(record) {
     const youtubeVideoId = getYouTubeVideoId(record.url);
@@ -803,7 +824,7 @@ async function heartbeat() {
 chrome.runtime.onInstalled.addListener(async () => {
     const enabled = await getStorage(ENABLED_KEY, null);
     if (enabled === null) {
-        await setStorage(ENABLED_KEY, true);
+        await setStorage(ENABLED_KEY, false);
     }
     chrome.alarms.create(HEARTBEAT_ALARM, { periodInMinutes: HEARTBEAT_MINUTES });
     await heartbeat();
@@ -850,6 +871,23 @@ chrome.windows.onFocusChanged.addListener(async (windowId) => {
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     (async () => {
         const payload = message;
+        if (payload?.type === 'getPrivacyStatus') {
+            const [consentAccepted, enabled] = await Promise.all([
+                getStorage(PRIVACY_CONSENT_KEY, false),
+                getStorage(ENABLED_KEY, false)
+            ]);
+            sendResponse({ ok: true, consentAccepted, enabled });
+            return;
+        }
+        if (payload?.type === 'acceptPrivacyConsent') {
+            await Promise.all([
+                setStorage(PRIVACY_CONSENT_KEY, true),
+                setStorage(ENABLED_KEY, true)
+            ]);
+            await heartbeat();
+            sendResponse({ ok: true, consentAccepted: true, enabled: true });
+            return;
+        }
         if (payload?.type === 'getAuthStatus') {
             const session = await getValidSupabaseSession();
             sendResponse({
@@ -899,7 +937,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             return;
         }
         if (payload?.type === 'getHistory') {
-            const enabled = await getStorage(ENABLED_KEY, true);
+            const enabled = await isTrackingEnabled();
             let compacted;
             try {
                 compacted = await refreshHistoryFromCloud();
@@ -917,6 +955,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         }
         if (payload?.type === 'setEnabled') {
             const enabled = Boolean(payload.enabled);
+            const consentAccepted = await getStorage(PRIVACY_CONSENT_KEY, false);
+            if (enabled && !consentAccepted) {
+                sendResponse({ ok: false, error: 'Privacy consent required' });
+                return;
+            }
             await setStorage(ENABLED_KEY, enabled);
             if (!enabled) {
                 for (const tabId of activeSessions.keys()) {
@@ -931,14 +974,22 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             return;
         }
         if (payload?.type === 'clearHistory') {
-            if (payload.scope === 'cloudAndLocal') {
-                const session = await getValidSupabaseSession();
-                if (session) {
-                    await deleteCloudRecords(session);
+            try {
+                if (payload.scope === 'cloudAndLocal') {
+                    const session = await getValidSupabaseSession();
+                    if (session) {
+                        await deleteCloudRecords(session);
+                    }
                 }
+                await setStorage(HISTORY_KEY, []);
+                sendResponse({ ok: true });
             }
-            await setStorage(HISTORY_KEY, []);
-            sendResponse({ ok: true });
+            catch (error) {
+                sendResponse({
+                    ok: false,
+                    error: error instanceof Error ? error.message : 'Clear failed'
+                });
+            }
             return;
         }
         if (payload?.type === 'openWithResume') {

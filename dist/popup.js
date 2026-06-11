@@ -6,12 +6,17 @@ const filterEl = document.getElementById('typeFilter');
 const exportBtn = document.getElementById('exportBtn');
 const clearBtn = document.getElementById('clearBtn');
 const enabledToggle = document.getElementById('enabledToggle');
+const consentCard = document.getElementById('consentCard');
+const acceptConsentBtn = document.getElementById('acceptConsentBtn');
+const privacyLinkBtn = document.getElementById('privacyLinkBtn');
 const authStatusTextEl = document.getElementById('authStatusText');
 const syncStatusTextEl = document.getElementById('syncStatusText');
 const signInBtn = document.getElementById('signInBtn');
 const signOutBtn = document.getElementById('signOutBtn');
+const deleteCloudBtn = document.getElementById('deleteCloudBtn');
 let allRecords = [];
 let isSignedIn = false;
+let hasPrivacyConsent = false;
 function formatDuration(seconds) {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
@@ -128,6 +133,28 @@ async function loadData() {
     enabledToggle.checked = Boolean(response.enabled);
     render();
 }
+async function loadPrivacyStatus() {
+    const response = (await chrome.runtime.sendMessage({ type: 'getPrivacyStatus' }));
+    if (!response?.ok) {
+        return;
+    }
+    hasPrivacyConsent = Boolean(response.consentAccepted);
+    consentCard.hidden = hasPrivacyConsent;
+    enabledToggle.disabled = !hasPrivacyConsent;
+    enabledToggle.checked = Boolean(response.enabled);
+}
+async function acceptPrivacyConsent() {
+    acceptConsentBtn.disabled = true;
+    const response = (await chrome.runtime.sendMessage({ type: 'acceptPrivacyConsent' }));
+    if (response?.ok) {
+        hasPrivacyConsent = true;
+        consentCard.hidden = true;
+        enabledToggle.disabled = false;
+        enabledToggle.checked = Boolean(response.enabled);
+        await loadData();
+    }
+    acceptConsentBtn.disabled = false;
+}
 function exportData() {
     const data = JSON.stringify(getFilteredRecords(), null, 2);
     const blob = new Blob([data], { type: 'application/json' });
@@ -154,7 +181,16 @@ async function clearData() {
     }
 }
 async function setEnabled(enabled) {
-    await chrome.runtime.sendMessage({ type: 'setEnabled', enabled });
+    if (enabled && !hasPrivacyConsent) {
+        enabledToggle.checked = false;
+        consentCard.hidden = false;
+        return;
+    }
+    const response = (await chrome.runtime.sendMessage({ type: 'setEnabled', enabled }));
+    if (!response?.ok) {
+        enabledToggle.checked = false;
+        syncStatusTextEl.textContent = response?.error || 'Tracking unavailable';
+    }
 }
 function setAuthUiState(response) {
     isSignedIn = Boolean(response.signedIn);
@@ -163,18 +199,21 @@ function setAuthUiState(response) {
         syncStatusTextEl.textContent = 'Sync disabled';
         signInBtn.disabled = true;
         signOutBtn.disabled = true;
+        deleteCloudBtn.disabled = true;
         return;
     }
     if (response.signedIn) {
         authStatusTextEl.textContent = response.user?.email || 'Signed in';
         signInBtn.disabled = true;
         signOutBtn.disabled = false;
+        deleteCloudBtn.disabled = false;
         renderSyncSummary();
         return;
     }
     authStatusTextEl.textContent = 'Not signed in';
     signInBtn.disabled = false;
     signOutBtn.disabled = true;
+    deleteCloudBtn.disabled = true;
     renderSyncSummary();
 }
 async function loadAuthStatus() {
@@ -206,6 +245,25 @@ async function signOut() {
     await loadAuthStatus();
     await loadData();
 }
+async function deleteCloudData() {
+    const shouldDelete = confirm('Delete all MovieTrack cloud data for this account and clear local history?');
+    if (!shouldDelete) {
+        return;
+    }
+    deleteCloudBtn.disabled = true;
+    const response = (await chrome.runtime.sendMessage({
+        type: 'clearHistory',
+        scope: 'cloudAndLocal'
+    }));
+    if (response?.ok) {
+        allRecords = [];
+        render();
+    }
+    else {
+        syncStatusTextEl.textContent = response?.error || 'Delete failed';
+    }
+    deleteCloudBtn.disabled = !isSignedIn;
+}
 filterEl.addEventListener('change', render);
 exportBtn.addEventListener('click', exportData);
 clearBtn.addEventListener('click', clearData);
@@ -218,7 +276,20 @@ signInBtn.addEventListener('click', () => {
 signOutBtn.addEventListener('click', () => {
     void signOut();
 });
-void loadData();
-void loadAuthStatus();
+deleteCloudBtn.addEventListener('click', () => {
+    void deleteCloudData();
+});
+acceptConsentBtn.addEventListener('click', () => {
+    void acceptPrivacyConsent();
+});
+privacyLinkBtn.addEventListener('click', () => {
+    void chrome.tabs.create({ url: chrome.runtime.getURL('privacy.html') });
+});
+async function init() {
+    await loadPrivacyStatus();
+    await loadData();
+    await loadAuthStatus();
+}
+void init();
 export {};
 //# sourceMappingURL=popup.js.map

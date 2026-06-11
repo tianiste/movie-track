@@ -33,6 +33,17 @@
 
     <!-- Main Content -->
     <main class="main-content">
+      <section id="consentCard" class="consent-card" hidden>
+        <div>
+          <p class="consent-title">Choose what MovieTrack can save</p>
+          <p class="consent-copy">MovieTrack records the current video page title, site, watch time, and playback progress. Data is saved on this device first and syncs to your Supabase account after Google sign-in. URLs are trimmed before saving.</p>
+        </div>
+        <div class="consent-actions">
+          <button id="privacyLinkBtn" class="action-btn secondary-btn">Privacy</button>
+          <button id="acceptConsentBtn" class="action-btn primary-btn">Allow tracking</button>
+        </div>
+      </section>
+
       <section class="auth-card">
         <div class="auth-status-row">
           <span class="material-symbols-outlined auth-icon">account_circle</span>
@@ -45,6 +56,7 @@
         <div class="auth-actions">
           <button id="signInBtn" class="action-btn auth-btn">Sign in with Google</button>
           <button id="signOutBtn" class="action-btn auth-btn">Sign out</button>
+          <button id="deleteCloudBtn" class="action-btn auth-btn danger-btn">Delete cloud data</button>
         </div>
       </section>
 
