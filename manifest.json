@@ -3,6 +3,7 @@
   "name": "MovieTrack",
   "version": "0.1.0",
   "description": "Track anime and movie watching activity from tab metadata (title + URL).",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvZhqcC0W2LatxrsYxWOSTaco7ad4tHRgG/4LPkN00ZDC41Z4Eq3wGTTdNSkEjVOuyD1mDU/s22+3V1cICUMb5aNEs2+wybwZ/rlcKEMQe8HqLZdy2RAmAmEPJ7d7diwn7Rx1qWIX+GMUN2yU0qsQkiRN7dwGO2kwbyR3oJniqARTvYCQ2Mz/08MN84hlDqUNpOJX2XiyEcVLlqVbwM4ybqsJnvT0h+3bZBD6pNUdzuQkKXGpB5Z0eX6bctJsOxo+nC0nZNZdosAy2eC2LZRPGFaskxLs93t9IVlEPjGOgu3c8WzUps7F4BhbRKa6yuP1HDAM/pQ52JwFCLXAxHItdQIDAQAB",
   "permissions": ["tabs", "storage", "alarms", "scripting", "identity"],
   "host_permissions": ["<all_urls>"],
   "icons": {

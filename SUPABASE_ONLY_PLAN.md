@@ -119,11 +119,17 @@ In Supabase Dashboard:
 2. Add Chrome extension redirect:
 
 ```txt
-https://<chrome-extension-id>.chromiumapp.org/supabase-auth
+https://lgocadpaahlplfilfmacphcfkfghfihl.chromiumapp.org/supabase-auth
 ```
 
 3. Keep Google OAuth client secret only in Supabase Dashboard/Google Cloud, never extension.
-4. Keep extension config public-only:
+4. Keep extension ID stable with manifest public `key`:
+
+```txt
+lgocadpaahlplfilfmacphcfkfghfihl
+```
+
+5. Keep extension config public-only:
 
 ```ts
 const SUPABASE_URL = 'https://<project-ref>.supabase.co';

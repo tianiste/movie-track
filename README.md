@@ -53,11 +53,12 @@ Watch history is synced through Supabase Data API with Row Level Security.
 4. In Supabase Dashboard:
 	- Enable Google provider in **Authentication > Providers**.
 	- Add this redirect URL in **Authentication > URL Configuration**:
-		- `https://<your-extension-id>.chromiumapp.org/supabase-auth`
+		- `https://lgocadpaahlplfilfmacphcfkfghfihl.chromiumapp.org/supabase-auth`
 5. Build and reload extension.
 
 Important:
 
+- The manifest includes a public extension `key`, so the unpacked extension ID stays `lgocadpaahlplfilfmacphcfkfghfihl`.
 - Never put a Supabase `service_role` key in the extension.
 - Never put DB passwords or Google client secrets in the extension.
 - User data security depends on RLS policies in `supabase/migrations`.
