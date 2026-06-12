@@ -41,18 +41,19 @@ Do not mark publish-ready until every required item below is done.
   - Confirm signing in again resumes sync.
 
 - [ ] Test final packaged install, not dev/unpacked source.
-  - Run:
+  - [x] Run:
     ```sh
     npm run package:webstore
     ```
-  - Load `/tmp/movietrack-webstore.zip` contents in clean Chrome profile.
-  - Confirm extension ID is:
+  - [x] Load `/tmp/movietrack-webstore.zip` contents in clean Chromium profile.
+  - [x] Confirm extension ID is:
     ```txt
     lgocadpaahlplfilfmacphcfkfghfihl
     ```
-  - Confirm first-run consent appears before tracking.
-  - Confirm Google login works.
-  - Confirm watching YouTube/video creates Supabase row.
+  - [x] Confirm service worker starts from packaged files.
+  - [ ] Confirm first-run consent appears before tracking.
+  - [ ] Confirm Google login works from packaged install.
+  - [ ] Confirm watching YouTube/video creates Supabase row from packaged install.
 
 ## Security / Supabase
 
@@ -127,9 +128,9 @@ Do not mark publish-ready until every required item below is done.
   npm run package:webstore
   ```
 
-- [ ] Inspect zip contents.
+- [x] Verify zip contents.
   ```sh
-  unzip -l /tmp/movietrack-webstore.zip
+  npm run verify:webstore
   ```
   Must not include:
   - `node_modules/`
