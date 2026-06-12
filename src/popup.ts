@@ -297,12 +297,16 @@ function setAuthUiState(response: AuthStatusResponse): void {
   isSignedIn = Boolean(response.signedIn);
   signInBtn.hidden = isSignedIn;
   signOutBtn.hidden = !isSignedIn;
+  syncCloudBtn.hidden = !isSignedIn;
+  deleteCloudBtn.hidden = !isSignedIn;
 
   if (!response.configured) {
     authStatusTextEl.textContent = 'Set Supabase public config';
     syncStatusTextEl.textContent = 'Sync disabled';
     signInBtn.hidden = false;
     signOutBtn.hidden = true;
+    syncCloudBtn.hidden = true;
+    deleteCloudBtn.hidden = true;
     signInBtn.disabled = true;
     signOutBtn.disabled = true;
     syncCloudBtn.disabled = true;
