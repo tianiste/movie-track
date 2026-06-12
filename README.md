@@ -109,13 +109,15 @@ MovieTrack is a Manifest V3 extension.
 4. Watch records are written locally first.
 5. If signed in, pending records sync to Supabase through the REST API using the user's Supabase Auth token.
 6. Supabase RLS restricts `watch_records` rows to `auth.uid() = user_id`.
-7. The popup renders local/cloud history, sync status, filters, export, clear, sign-in, sign-out, and delete actions.
+7. The popup renders recent history, sync status, filters, export, and local clear actions.
+8. The settings page handles Google sign-in, sign-out, cloud sync, cloud deletion, local export, and privacy links.
 
 Core files:
 
 - [manifest.json](manifest.json) defines MV3 permissions and extension entry points.
 - [src/background.ts](src/background.ts) tracks sessions, auth, sync, URL minimization, and resume behavior.
-- [src/popup.ts](src/popup.ts) renders history, filters, consent, auth, export, and cloud actions.
+- [src/popup.ts](src/popup.ts) renders history, filters, consent, export, and local clear actions.
+- [src/options.ts](src/options.ts) renders settings, account, cloud sync, and data-management actions.
 - [supabase/migrations](supabase/migrations) defines `watch_records` and RLS.
 - [scripts/verify-publish-ready.js](scripts/verify-publish-ready.js) checks publish/security invariants.
 
@@ -179,7 +181,7 @@ MovieTrack does not collect:
 - inactive tab history
 - audio-only playback
 
-Records stay local while signed out. Signed-in records sync over HTTPS to Supabase. Users can clear local data or delete synced cloud data from the popup.
+Records stay local while signed out. Signed-in records sync over HTTPS to Supabase. Users can clear local data from the popup or delete synced cloud data from Settings.
 
 Read the full policy in [PRIVACY_POLICY.md](PRIVACY_POLICY.md). Public HTML policy lives in [docs/privacy.html](docs/privacy.html).
 
@@ -241,7 +243,7 @@ Yes. It works locally while signed out. Sign in with Google only if you want clo
 
 ### Can I delete my data?
 
-Yes. Use **Clear** for local history and **Delete cloud data** after sign-in for synced records.
+Yes. Use **Clear** in the popup for local history and **Delete cloud data** in Settings after sign-in for synced records.
 
 ### Does it support Brave?
 

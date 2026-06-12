@@ -9,9 +9,12 @@ const requiredFiles = new Set([
   'manifest.json',
   'popup.html',
   'popup.css',
+  'options.html',
+  'options.css',
   'privacy.html',
   'dist/background.js',
   'dist/popup.js',
+  'dist/options.js',
   'dist/config.js',
   'dist/types.js'
 ]);

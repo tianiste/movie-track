@@ -24,7 +24,7 @@
             <input id="enabledToggle" type="checkbox" class="toggle-input" />
             <span class="toggle-switch"></span>
           </label>
-          <button class="icon-btn settings-btn">
+          <button id="settingsBtn" class="icon-btn settings-btn" title="Settings">
             <span class="material-symbols-outlined">settings</span>
           </button>
         </div>
@@ -52,12 +52,6 @@
             <p class="auth-status" id="authStatusText">Not signed in</p>
             <p class="auth-sync" id="syncStatusText">Local only</p>
           </div>
-        </div>
-        <div class="auth-actions">
-          <button id="signInBtn" class="action-btn auth-btn">Sign in with Google</button>
-          <button id="signOutBtn" class="action-btn auth-btn">Sign out</button>
-          <button id="syncCloudBtn" class="action-btn auth-btn">Sync cloud</button>
-          <button id="deleteCloudBtn" class="action-btn auth-btn danger-btn">Delete cloud data</button>
         </div>
       </section>
 

@@ -201,6 +201,6 @@ Use `docs/release-test-plan.md` to record final manual proof before submitting t
 - [x] Google sign-in works after redirect URL fix.
 - [x] Sync works on another computer.
 - [x] Consent screen exists before tracking.
-- [x] Delete cloud data button exists.
+- [x] Delete cloud data button exists in Settings.
 - [x] Runtime package script exists.
 - [x] `node_modules`, `.env`, PEM, CRX, and Supabase temp files ignored.

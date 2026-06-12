@@ -41,10 +41,12 @@ Keep:
 - `tsconfig.json` - strict TypeScript compile config.
 - `src/background.ts` - core tracking/auth/sync logic.
 - `src/popup.ts` - popup UI logic.
+- `src/options.ts` - settings/account/cloud sync UI logic.
 - `src/types.ts` - shared types.
 - `src/config.ts` - public Supabase config only.
 - `popup.html` - extension popup markup.
 - `popup.css` - extension popup styling.
+- `options.html` / `options.css` - extension settings page.
 - `icons/*.png` - required extension icons.
 - `supabase/migrations/*.sql` - production schema and RLS history.
 - `supabase/config.toml` - Supabase CLI local development config.
@@ -61,7 +63,7 @@ Keep:
 
 Conditional keep:
 
-- `dist/background.js`, `dist/config.js`, `dist/popup.js`, `dist/types.js` - runtime output required by unpacked extension after build. Keep if repo should be loadable without running build. Otherwise remove from git and rely on `npm run build`.
+- `dist/background.js`, `dist/config.js`, `dist/popup.js`, `dist/options.js`, `dist/types.js` - runtime output required by unpacked extension after build. Keep if repo should be loadable without running build. Otherwise remove from git and rely on `npm run build`.
 - `dist/*.map` - source maps. Useful for debugging, not needed in repo or Web Store package. Prefer delete from git and ignore.
 - `docs/archive/supabase-only-plan.md` - historical implementation plan. Useful only as archive because implementation exists.
 
@@ -85,6 +87,7 @@ Recommended git cleanup later:
 ```txt
 dist/background.js.map
 dist/config.js.map
+dist/options.js.map
 dist/popup.js.map
 dist/types.js.map
 ```
@@ -100,6 +103,7 @@ Do not delete unless build workflow changes:
 ```txt
 dist/background.js
 dist/config.js
+dist/options.js
 dist/popup.js
 dist/types.js
 ```
@@ -133,6 +137,8 @@ Recommended structure:
 ├── manifest.json
 ├── popup.html
 ├── popup.css
+├── options.html
+├── options.css
 ├── privacy.html
 ├── package.json
 ├── package-lock.json
@@ -140,11 +146,13 @@ Recommended structure:
 ├── src/
 │   ├── background.ts
 │   ├── config.ts
+│   ├── options.ts
 │   ├── popup.ts
 │   └── types.ts
 ├── dist/
 │   ├── background.js
 │   ├── config.js
+│   ├── options.js
 │   ├── popup.js
 │   └── types.js
 ├── icons/

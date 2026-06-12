@@ -32,7 +32,7 @@ Records are saved locally in Chrome extension storage first. After Google sign-i
 
 ## Deletion
 
-Use **Delete cloud data** in the popup to delete synced watch records and clear local history. Use **Clear** while signed out to clear local-only history.
+Use **Delete cloud data** in Settings to delete synced watch records and clear local history. Use **Clear** in the popup to clear local-only history on the current device.
 
 For account deletion beyond watch-record deletion, contact the publisher through the Chrome Web Store support channel.
 

@@ -6,7 +6,7 @@
   "scripts": {
     "clean": "rm -rf dist",
     "build": "tsc -p tsconfig.json",
-    "package:webstore": "npm run build && rm -f /tmp/movietrack-webstore.zip && zip -r /tmp/movietrack-webstore.zip manifest.json popup.html popup.css privacy.html icons dist/background.js dist/popup.js dist/config.js dist/types.js && npm run verify:webstore",
+    "package:webstore": "npm run build && rm -f /tmp/movietrack-webstore.zip && zip -r /tmp/movietrack-webstore.zip manifest.json popup.html popup.css options.html options.css privacy.html icons dist/background.js dist/popup.js dist/options.js dist/config.js dist/types.js && npm run verify:webstore",
     "verify:publish": "npm run typecheck && npm run package:webstore && node scripts/verify-publish-ready.js",
     "verify:webstore": "node scripts/verify-webstore-package.js /tmp/movietrack-webstore.zip",
     "watch": "tsc -w -p tsconfig.json",

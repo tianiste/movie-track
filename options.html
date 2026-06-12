@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MovieTrack Settings</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" rel="stylesheet" />
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main class="settings-shell">
+      <header class="settings-header">
+        <div>
+          <p class="eyebrow">MovieTrack</p>
+          <h1>Settings</h1>
+        </div>
+        <button id="openPrivacyBtn" class="icon-text-btn">
+          <span class="material-symbols-outlined">privacy_tip</span>
+          Privacy
+        </button>
+      </header>
+
+      <section class="settings-card">
+        <div class="section-heading">
+          <span class="material-symbols-outlined">account_circle</span>
+          <div>
+            <h2>Account</h2>
+            <p id="accountStatusText">Checking account...</p>
+          </div>
+        </div>
+        <div class="button-grid">
+          <button id="signInBtn" class="action-btn primary-btn">Sign in with Google</button>
+          <button id="signOutBtn" class="action-btn">Sign out</button>
+        </div>
+      </section>
+
+      <section class="settings-card">
+        <div class="section-heading">
+          <span class="material-symbols-outlined">cloud_sync</span>
+          <div>
+            <h2>Sync</h2>
+            <p id="syncStatusText">Local only</p>
+          </div>
+        </div>
+        <div class="button-grid">
+          <button id="syncCloudBtn" class="action-btn">Sync cloud to this device</button>
+          <button id="deleteCloudBtn" class="action-btn danger-btn">Delete cloud data</button>
+        </div>
+      </section>
+
+      <section class="settings-card">
+        <div class="section-heading">
+          <span class="material-symbols-outlined">database</span>
+          <div>
+            <h2>Local Data</h2>
+            <p id="localStatusText">Loading local history...</p>
+          </div>
+        </div>
+        <div class="button-grid">
+          <button id="exportBtn" class="action-btn">Export local history</button>
+          <button id="clearLocalBtn" class="action-btn danger-btn">Clear local data</button>
+        </div>
+      </section>
+
+      <section class="settings-card">
+        <div class="section-heading">
+          <span class="material-symbols-outlined">shield</span>
+          <div>
+            <h2>Tracking Access</h2>
+            <p id="trackingStatusText">Checking permissions...</p>
+          </div>
+        </div>
+        <p class="muted">Tracking starts only after privacy consent, optional site access, active audible tab playback, and a readable video element.</p>
+      </section>
+    </main>
+
+    <script src="dist/options.js" type="module"></script>
+  </body>
+</html>

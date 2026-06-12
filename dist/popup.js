@@ -9,16 +9,13 @@ const dateFilterEl = document.getElementById('dateFilter');
 const filterEl = document.getElementById('typeFilter');
 const exportBtn = document.getElementById('exportBtn');
 const clearBtn = document.getElementById('clearBtn');
+const settingsBtn = document.getElementById('settingsBtn');
 const enabledToggle = document.getElementById('enabledToggle');
 const consentCard = document.getElementById('consentCard');
 const acceptConsentBtn = document.getElementById('acceptConsentBtn');
 const privacyLinkBtn = document.getElementById('privacyLinkBtn');
 const authStatusTextEl = document.getElementById('authStatusText');
 const syncStatusTextEl = document.getElementById('syncStatusText');
-const signInBtn = document.getElementById('signInBtn');
-const signOutBtn = document.getElementById('signOutBtn');
-const syncCloudBtn = document.getElementById('syncCloudBtn');
-const deleteCloudBtn = document.getElementById('deleteCloudBtn');
 let allRecords = [];
 let isSignedIn = false;
 let hasPrivacyConsent = false;
@@ -319,14 +316,13 @@ function exportData() {
     URL.revokeObjectURL(url);
 }
 async function clearData() {
-    const message = isSignedIn ? 'Clear cloud and local tracked history?' : 'Clear local tracked history?';
-    const shouldClear = confirm(message);
+    const shouldClear = confirm('Clear local tracked history on this device? Cloud data can be deleted from Settings.');
     if (!shouldClear) {
         return;
     }
     const response = (await chrome.runtime.sendMessage({
         type: 'clearHistory',
-        scope: isSignedIn ? 'cloudAndLocal' : 'local'
+        scope: 'local'
     }));
     if (response?.ok) {
         allRecords = [];
@@ -347,100 +343,26 @@ async function setEnabled(enabled) {
 }
 function setAuthUiState(response) {
     isSignedIn = Boolean(response.signedIn);
-    signInBtn.hidden = isSignedIn;
-    signOutBtn.hidden = !isSignedIn;
-    syncCloudBtn.hidden = !isSignedIn;
-    deleteCloudBtn.hidden = !isSignedIn;
     if (!response.configured) {
         authStatusTextEl.textContent = 'Set Supabase public config';
         syncStatusTextEl.textContent = 'Sync disabled';
-        signInBtn.hidden = false;
-        signOutBtn.hidden = true;
-        syncCloudBtn.hidden = true;
-        deleteCloudBtn.hidden = true;
-        signInBtn.disabled = true;
-        signOutBtn.disabled = true;
-        syncCloudBtn.disabled = true;
-        deleteCloudBtn.disabled = true;
         return;
     }
     if (response.signedIn) {
         authStatusTextEl.textContent = response.user?.email || 'Signed in';
-        signInBtn.disabled = true;
-        signOutBtn.disabled = false;
-        syncCloudBtn.disabled = false;
-        deleteCloudBtn.disabled = false;
         renderSyncSummary();
         return;
     }
     authStatusTextEl.textContent = 'Not signed in';
-    signInBtn.disabled = false;
-    signOutBtn.disabled = true;
-    syncCloudBtn.disabled = true;
-    deleteCloudBtn.disabled = true;
     renderSyncSummary();
 }
 async function loadAuthStatus() {
     const response = (await chrome.runtime.sendMessage({ type: 'getAuthStatus' }));
     if (!response?.ok) {
         authStatusTextEl.textContent = 'Auth status unavailable';
-        signOutBtn.disabled = true;
         return;
     }
     setAuthUiState(response);
-}
-async function signIn() {
-    signInBtn.disabled = true;
-    const response = (await chrome.runtime.sendMessage({ type: 'signIn' }));
-    if (!response?.ok) {
-        authStatusTextEl.textContent = response?.error || 'Sign-in failed';
-        signInBtn.disabled = false;
-        return;
-    }
-    await loadAuthStatus();
-    await loadData();
-}
-async function signOut() {
-    signOutBtn.disabled = true;
-    await chrome.runtime.sendMessage({ type: 'signOut' });
-    await loadAuthStatus();
-    await loadData();
-}
-async function syncCloudToLocal() {
-    if (!isSignedIn) {
-        return;
-    }
-    syncCloudBtn.disabled = true;
-    syncStatusTextEl.textContent = 'Syncing cloud...';
-    const response = (await chrome.runtime.sendMessage({ type: 'syncCloudToLocal' }));
-    if (response?.ok) {
-        allRecords = response.history || [];
-        render();
-        syncStatusTextEl.textContent = 'Cloud synced';
-    }
-    else {
-        syncStatusTextEl.textContent = response?.error || 'Cloud sync failed';
-    }
-    syncCloudBtn.disabled = !isSignedIn;
-}
-async function deleteCloudData() {
-    const shouldDelete = confirm('Delete all MovieTrack cloud data for this account and clear local history?');
-    if (!shouldDelete) {
-        return;
-    }
-    deleteCloudBtn.disabled = true;
-    const response = (await chrome.runtime.sendMessage({
-        type: 'clearHistory',
-        scope: 'cloudAndLocal'
-    }));
-    if (response?.ok) {
-        allRecords = [];
-        render();
-    }
-    else {
-        syncStatusTextEl.textContent = response?.error || 'Delete failed';
-    }
-    deleteCloudBtn.disabled = !isSignedIn;
 }
 filterEl.addEventListener('change', render);
 searchFilterEl.addEventListener('input', render);
@@ -453,17 +375,12 @@ clearBtn.addEventListener('click', clearData);
 enabledToggle.addEventListener('change', () => {
     void setEnabled(enabledToggle.checked);
 });
-signInBtn.addEventListener('click', () => {
-    void signIn();
-});
-signOutBtn.addEventListener('click', () => {
-    void signOut();
-});
-syncCloudBtn.addEventListener('click', () => {
-    void syncCloudToLocal();
-});
-deleteCloudBtn.addEventListener('click', () => {
-    void deleteCloudData();
+settingsBtn.addEventListener('click', () => {
+    if (chrome.runtime.openOptionsPage) {
+        void chrome.runtime.openOptionsPage();
+        return;
+    }
+    void chrome.tabs.create({ url: chrome.runtime.getURL('options.html') });
 });
 acceptConsentBtn.addEventListener('click', () => {
     void acceptPrivacyConsent();

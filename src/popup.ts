@@ -58,16 +58,13 @@ const dateFilterEl = document.getElementById('dateFilter') as HTMLInputElement;
 const filterEl = document.getElementById('typeFilter') as HTMLSelectElement;
 const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
 const clearBtn = document.getElementById('clearBtn') as HTMLButtonElement;
+const settingsBtn = document.getElementById('settingsBtn') as HTMLButtonElement;
 const enabledToggle = document.getElementById('enabledToggle') as HTMLInputElement;
 const consentCard = document.getElementById('consentCard') as HTMLElement;
 const acceptConsentBtn = document.getElementById('acceptConsentBtn') as HTMLButtonElement;
 const privacyLinkBtn = document.getElementById('privacyLinkBtn') as HTMLButtonElement;
 const authStatusTextEl = document.getElementById('authStatusText') as HTMLElement;
 const syncStatusTextEl = document.getElementById('syncStatusText') as HTMLElement;
-const signInBtn = document.getElementById('signInBtn') as HTMLButtonElement;
-const signOutBtn = document.getElementById('signOutBtn') as HTMLButtonElement;
-const syncCloudBtn = document.getElementById('syncCloudBtn') as HTMLButtonElement;
-const deleteCloudBtn = document.getElementById('deleteCloudBtn') as HTMLButtonElement;
 
 let allRecords: WatchRecord[] = [];
 let isSignedIn = false;
@@ -421,15 +418,14 @@ function exportData(): void {
 }
 
 async function clearData(): Promise<void> {
-  const message = isSignedIn ? 'Clear cloud and local tracked history?' : 'Clear local tracked history?';
-  const shouldClear = confirm(message);
+  const shouldClear = confirm('Clear local tracked history on this device? Cloud data can be deleted from Settings.');
   if (!shouldClear) {
     return;
   }
 
   const response = (await chrome.runtime.sendMessage({
     type: 'clearHistory',
-    scope: isSignedIn ? 'cloudAndLocal' : 'local'
+    scope: 'local'
   })) as { ok: boolean };
   if (response?.ok) {
     allRecords = [];
@@ -453,40 +449,20 @@ async function setEnabled(enabled: boolean): Promise<void> {
 
 function setAuthUiState(response: AuthStatusResponse): void {
   isSignedIn = Boolean(response.signedIn);
-  signInBtn.hidden = isSignedIn;
-  signOutBtn.hidden = !isSignedIn;
-  syncCloudBtn.hidden = !isSignedIn;
-  deleteCloudBtn.hidden = !isSignedIn;
 
   if (!response.configured) {
     authStatusTextEl.textContent = 'Set Supabase public config';
     syncStatusTextEl.textContent = 'Sync disabled';
-    signInBtn.hidden = false;
-    signOutBtn.hidden = true;
-    syncCloudBtn.hidden = true;
-    deleteCloudBtn.hidden = true;
-    signInBtn.disabled = true;
-    signOutBtn.disabled = true;
-    syncCloudBtn.disabled = true;
-    deleteCloudBtn.disabled = true;
     return;
   }
 
   if (response.signedIn) {
     authStatusTextEl.textContent = response.user?.email || 'Signed in';
-    signInBtn.disabled = true;
-    signOutBtn.disabled = false;
-    syncCloudBtn.disabled = false;
-    deleteCloudBtn.disabled = false;
     renderSyncSummary();
     return;
   }
 
   authStatusTextEl.textContent = 'Not signed in';
-  signInBtn.disabled = false;
-  signOutBtn.disabled = true;
-  syncCloudBtn.disabled = true;
-  deleteCloudBtn.disabled = true;
   renderSyncSummary();
 }
 
@@ -494,79 +470,10 @@ async function loadAuthStatus(): Promise<void> {
   const response = (await chrome.runtime.sendMessage({ type: 'getAuthStatus' })) as AuthStatusResponse;
   if (!response?.ok) {
     authStatusTextEl.textContent = 'Auth status unavailable';
-    signOutBtn.disabled = true;
     return;
   }
 
   setAuthUiState(response);
-}
-
-async function signIn(): Promise<void> {
-  signInBtn.disabled = true;
-  const response = (await chrome.runtime.sendMessage({ type: 'signIn' })) as AuthStatusResponse;
-
-  if (!response?.ok) {
-    authStatusTextEl.textContent = response?.error || 'Sign-in failed';
-    signInBtn.disabled = false;
-    return;
-  }
-
-  await loadAuthStatus();
-  await loadData();
-}
-
-async function signOut(): Promise<void> {
-  signOutBtn.disabled = true;
-  await chrome.runtime.sendMessage({ type: 'signOut' });
-  await loadAuthStatus();
-  await loadData();
-}
-
-async function syncCloudToLocal(): Promise<void> {
-  if (!isSignedIn) {
-    return;
-  }
-
-  syncCloudBtn.disabled = true;
-  syncStatusTextEl.textContent = 'Syncing cloud...';
-
-  const response = (await chrome.runtime.sendMessage({ type: 'syncCloudToLocal' })) as {
-    ok: boolean;
-    history?: WatchRecord[];
-    error?: string;
-  };
-
-  if (response?.ok) {
-    allRecords = response.history || [];
-    render();
-    syncStatusTextEl.textContent = 'Cloud synced';
-  } else {
-    syncStatusTextEl.textContent = response?.error || 'Cloud sync failed';
-  }
-
-  syncCloudBtn.disabled = !isSignedIn;
-}
-
-async function deleteCloudData(): Promise<void> {
-  const shouldDelete = confirm('Delete all MovieTrack cloud data for this account and clear local history?');
-  if (!shouldDelete) {
-    return;
-  }
-
-  deleteCloudBtn.disabled = true;
-  const response = (await chrome.runtime.sendMessage({
-    type: 'clearHistory',
-    scope: 'cloudAndLocal'
-  })) as { ok: boolean; error?: string };
-
-  if (response?.ok) {
-    allRecords = [];
-    render();
-  } else {
-    syncStatusTextEl.textContent = response?.error || 'Delete failed';
-  }
-
-  deleteCloudBtn.disabled = !isSignedIn;
 }
 
 filterEl.addEventListener('change', render);
@@ -580,17 +487,12 @@ clearBtn.addEventListener('click', clearData);
 enabledToggle.addEventListener('change', () => {
   void setEnabled(enabledToggle.checked);
 });
-signInBtn.addEventListener('click', () => {
-  void signIn();
-});
-signOutBtn.addEventListener('click', () => {
-  void signOut();
-});
-syncCloudBtn.addEventListener('click', () => {
-  void syncCloudToLocal();
-});
-deleteCloudBtn.addEventListener('click', () => {
-  void deleteCloudData();
+settingsBtn.addEventListener('click', () => {
+  if (chrome.runtime.openOptionsPage) {
+    void chrome.runtime.openOptionsPage();
+    return;
+  }
+  void chrome.tabs.create({ url: chrome.runtime.getURL('options.html') });
 });
 acceptConsentBtn.addEventListener('click', () => {
   void acceptPrivacyConsent();

@@ -32,9 +32,12 @@ const privateSecretPatterns = [
 const sourceGlobs = [
   'manifest.json',
   'popup.html',
+  'options.html',
+  'options.css',
   'privacy.html',
   'src/background.ts',
   'src/config.ts',
+  'src/options.ts',
   'src/popup.ts',
   'src/types.ts',
   'supabase/migrations/20260611224728_create_watch_records.sql',
@@ -92,6 +95,10 @@ for (const file of sourceGlobs) {
 }
 
 const manifest = readJson('manifest.json');
+if (manifest.options_page !== 'options.html') {
+  fail('manifest must expose options.html as the settings page');
+}
+
 const requiredPermissions = new Set(manifest.permissions || []);
 for (const permission of ['tabs', 'storage', 'alarms', 'scripting', 'identity']) {
   if (!requiredPermissions.has(permission)) {
@@ -136,6 +143,8 @@ if (/security\s+definer/i.test(migrations)) {
 }
 
 const background = readText('src/background.ts');
+const options = readText('src/options.ts');
+const optionsHtml = readText('options.html');
 const popup = readText('src/popup.ts');
 const popupHtml = readText('popup.html');
 for (const phrase of [
@@ -159,11 +168,22 @@ for (const phrase of [
   'readable video element',
   'URLs are trimmed',
   'id="acceptConsentBtn"',
-  'id="privacyLinkBtn"',
-  'id="syncCloudBtn"'
+  'id="privacyLinkBtn"'
 ]) {
   if (!popupHtml.includes(phrase)) {
     fail(`popup consent disclosure missing invariant: ${phrase}`);
+  }
+}
+
+for (const phrase of [
+  'id="signInBtn"',
+  'id="signOutBtn"',
+  'id="syncCloudBtn"',
+  'id="deleteCloudBtn"',
+  'Delete cloud data'
+]) {
+  if (!optionsHtml.includes(phrase)) {
+    fail(`options account/cloud controls missing invariant: ${phrase}`);
   }
 }
 
@@ -177,8 +197,8 @@ for (const phrase of [
   }
 }
 
-if (!popup.includes("chrome.runtime.sendMessage({ type: 'syncCloudToLocal' })")) {
-  fail('popup cloud-to-local sync button is not wired');
+if (!options.includes("chrome.runtime.sendMessage({ type: 'syncCloudToLocal' })")) {
+  fail('options cloud-to-local sync button is not wired');
 }
 
 for (const phrase of [
