@@ -4,6 +4,8 @@ Current state: extension works locally, Google sign-in works, Supabase sync work
 
 Do not mark publish-ready until every required item below is done.
 
+Use `RELEASE_TEST_PLAN.md` to record final manual proof before submitting to Chrome Web Store.
+
 ## Must Do Before Chrome Web Store
 
 - [x] Host privacy policy at a public URL.
@@ -25,6 +27,7 @@ Do not mark publish-ready until every required item below is done.
   - Say data is not sold, not used for ads, not transferred for marketing.
 
 - [ ] Verify two real users cannot see each other's data.
+  - Record evidence in `RELEASE_TEST_PLAN.md`.
   - Google account A: sign in, accept consent, watch video for 10+ seconds.
   - Confirm account A sees/syncs its own row.
   - Google account B in another Chrome profile/device: sign in.
@@ -33,6 +36,7 @@ Do not mark publish-ready until every required item below is done.
   - Confirm Supabase `watch_records` has separate `user_id` values.
 
 - [ ] Test logout.
+  - Record evidence in `RELEASE_TEST_PLAN.md`.
   - Sign in.
   - Confirm cloud sync works.
   - Code now calls Supabase `/auth/v1/logout` before clearing local session.
@@ -41,6 +45,7 @@ Do not mark publish-ready until every required item below is done.
   - Confirm local-only tracking still works after sign-out.
 
 - [ ] Test token expiry/refresh.
+  - Record evidence in `RELEASE_TEST_PLAN.md`.
   - Leave signed in long enough for refresh path, or manually invalidate session.
   - Code now clears local auth state for invalid/revoked refresh tokens.
   - Code keeps local watch records intact when refresh cannot complete.
@@ -50,6 +55,7 @@ Do not mark publish-ready until every required item below is done.
   - Confirm signing in again resumes sync.
 
 - [ ] Test final packaged install, not dev/unpacked source.
+  - Record evidence in `RELEASE_TEST_PLAN.md`.
   - [x] Run:
     ```sh
     npm run package:webstore
@@ -182,6 +188,7 @@ Do not mark publish-ready until every required item below is done.
 - [ ] Upload `/tmp/movietrack-webstore.zip` to Chrome Web Store.
 - [ ] Add privacy policy URL.
 - [ ] Add permission justifications from `CHROME_WEB_STORE.md`.
+- [ ] Fill evidence in `RELEASE_TEST_PLAN.md`.
 - [ ] Submit for review.
 
 ## Already Working
