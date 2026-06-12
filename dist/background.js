@@ -191,21 +191,32 @@ async function refreshSupabaseSessionIfNeeded(session) {
         return session;
     }
     if (!session.refreshToken) {
+        await clearSupabaseSession();
         return null;
     }
-    const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
-        method: 'POST',
-        headers: {
-            apikey: SUPABASE_PUBLISHABLE_KEY,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ refresh_token: session.refreshToken })
-    });
+    let response;
+    try {
+        response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+            method: 'POST',
+            headers: {
+                apikey: SUPABASE_PUBLISHABLE_KEY,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ refresh_token: session.refreshToken })
+        });
+    }
+    catch {
+        return null;
+    }
     if (!response.ok) {
+        if (response.status === 400 || response.status === 401 || response.status === 403) {
+            await clearSupabaseSession();
+        }
         return null;
     }
     const data = (await response.json());
     if (!data?.access_token) {
+        await clearSupabaseSession();
         return null;
     }
     const refreshed = {

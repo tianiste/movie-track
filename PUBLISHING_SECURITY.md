@@ -45,6 +45,8 @@ Latest advisor run: June 12, 2026. Warnings only:
 - Sign-in uses Supabase Google OAuth through `chrome.identity.launchWebAuthFlow`.
 - Supabase access and refresh tokens are stored in `chrome.storage.local`.
 - Token refresh runs before sync/auth checks when the token is near expiry.
+- Invalid or revoked refresh tokens clear the local signed-in state.
+- Temporary refresh/network failures leave local watch records intact and sync can resume after sign-in.
 - Sign-out calls Supabase `/auth/v1/logout` to revoke the server-side session when possible, then clears local session storage even if the network logout fails.
 
 ## Publish Checklist

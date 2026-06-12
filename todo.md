@@ -42,6 +42,8 @@ Do not mark publish-ready until every required item below is done.
 
 - [ ] Test token expiry/refresh.
   - Leave signed in long enough for refresh path, or manually invalidate session.
+  - Code now clears local auth state for invalid/revoked refresh tokens.
+  - Code keeps local watch records intact when refresh cannot complete.
   - Open popup.
   - Confirm no crash.
   - Confirm failed sync keeps pending local records.
