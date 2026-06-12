@@ -1,0 +1,52 @@
+name: Bug report
+description: Report something broken in MovieTrack.
+title: "fix: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: "Do not include private watch history, auth tokens, cookies, or account secrets."
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What happened?
+      placeholder: MovieTrack marked a YouTube record as unknown.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened?
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser
+      placeholder: Chrome 126, Brave 1.67, Edge 126
+    validations:
+      required: true
+  - type: input
+    id: site
+    attributes:
+      label: Site or URL pattern
+      description: Use a safe minimized URL or hostname only.
+      placeholder: youtube.com/watch?v=...
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Load extension
+        2. Open video
+        3. Watch for 10 seconds
+        4. Open popup
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Paste non-sensitive logs or attach screenshots.

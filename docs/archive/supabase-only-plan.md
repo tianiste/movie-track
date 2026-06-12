@@ -9,7 +9,7 @@ Core rule: extension is public client. Never place DB password, Supabase `servic
 Use this goal text:
 
 ```txt
-Implement MovieTrack Supabase-only account sync using SUPABASE_ONLY_PLAN.md. First add/login Supabase MCP for project_ref=wyeqtsnjlxixbpnkimmo, then use Supabase CLI/MCP to create schema + RLS. No custom backend. Keep extension local-first, sync watch records to Supabase after Google login, no secrets in extension except public Supabase URL/publishable key. Use existing MV3 TypeScript style, write readable typed code, run typecheck/build, commit/push in small parts with short messages like "feat: added supabase schema", "feat: added cloud sync". Use relevant Supabase/extension skills if available; otherwise follow this plan exactly.
+Implement MovieTrack Supabase-only account sync using `docs/archive/supabase-only-plan.md`. First add/login Supabase MCP for project_ref=wyeqtsnjlxixbpnkimmo, then use Supabase CLI/MCP to create schema + RLS. No custom backend. Keep extension local-first, sync watch records to Supabase after Google login, no secrets in extension except public Supabase URL/publishable key. Use existing MV3 TypeScript style, write readable typed code, run typecheck/build, commit/push in small parts with short messages like "feat: added supabase schema", "feat: added cloud sync". Use relevant Supabase/extension skills if available; otherwise follow this plan exactly.
 ```
 
 ## Target Stack
@@ -512,7 +512,7 @@ git push
 Part 5:
 
 ```sh
-git add extension/README.md SUPABASE_ONLY_PLAN.md
+git add extension/README.md extension/docs/archive/supabase-only-plan.md
 git commit -m "feat: added supabase setup docs"
 git push
 ```

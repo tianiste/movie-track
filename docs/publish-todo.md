@@ -4,7 +4,7 @@ Current state: extension works locally, Google sign-in works, Supabase sync work
 
 Do not mark publish-ready until every required item below is done.
 
-Use `RELEASE_TEST_PLAN.md` to record final manual proof before submitting to Chrome Web Store.
+Use `docs/release-test-plan.md` to record final manual proof before submitting to Chrome Web Store.
 
 ## Must Do Before Chrome Web Store
 
@@ -20,14 +20,14 @@ Use `RELEASE_TEST_PLAN.md` to record final manual proof before submitting to Chr
   - Add this URL in Chrome Web Store Developer Dashboard.
 
 - [ ] Fill Chrome Web Store privacy practices.
-  - Use `CHROME_WEB_STORE.md`.
+  - Use `docs/chrome-web-store.md`.
   - Disclose browsing/video watch activity.
   - Disclose authentication/session data.
   - Say data is used only for watch progress and account sync.
   - Say data is not sold, not used for ads, not transferred for marketing.
 
 - [ ] Verify two real users cannot see each other's data.
-  - Record evidence in `RELEASE_TEST_PLAN.md`.
+  - Record evidence in `docs/release-test-plan.md`.
   - Google account A: sign in, accept consent, watch video for 5+ seconds.
   - Confirm account A sees/syncs its own row.
   - Google account B in another Chrome profile/device: sign in.
@@ -36,7 +36,7 @@ Use `RELEASE_TEST_PLAN.md` to record final manual proof before submitting to Chr
   - Confirm Supabase `watch_records` has separate `user_id` values.
 
 - [x] Test logout.
-  - Record evidence in `RELEASE_TEST_PLAN.md`.
+  - Record evidence in `docs/release-test-plan.md`.
   - Sign in.
   - Confirm cloud sync works.
   - Code now calls Supabase `/auth/v1/logout` before clearing local session.
@@ -45,7 +45,7 @@ Use `RELEASE_TEST_PLAN.md` to record final manual proof before submitting to Chr
   - Confirm local-only tracking still works after sign-out.
 
 - [x] Test token expiry/refresh.
-  - Record evidence in `RELEASE_TEST_PLAN.md`.
+  - Record evidence in `docs/release-test-plan.md`.
   - Leave signed in long enough for refresh path, or manually invalidate session.
   - Code now clears local auth state for invalid/revoked refresh tokens.
   - Code keeps local watch records intact when refresh cannot complete.
@@ -55,7 +55,7 @@ Use `RELEASE_TEST_PLAN.md` to record final manual proof before submitting to Chr
   - Confirm signing in again resumes sync.
 
 - [ ] Test final packaged install, not dev/unpacked source.
-  - Record evidence in `RELEASE_TEST_PLAN.md`.
+  - Record evidence in `docs/release-test-plan.md`.
   - [x] Run:
     ```sh
     npm run package:webstore
@@ -89,7 +89,7 @@ Use `RELEASE_TEST_PLAN.md` to record final manual proof before submitting to Chr
     ```txt
     pg_graphql_authenticated_table_exposed
     ```
-  - Decision: accepted/documented in `PUBLISHING_SECURITY.md`.
+  - Decision: accepted/documented in `docs/publishing-security.md`.
   - Reason: RLS is enabled and forced; rows are owner-scoped by `user_id = auth.uid()`.
   - If a reviewer/security requirement demands zero warning later: disable GraphQL exposure in Supabase or move API table/view to dedicated exposed schema.
 
@@ -190,8 +190,8 @@ Use `RELEASE_TEST_PLAN.md` to record final manual proof before submitting to Chr
 
 - [ ] Upload `/tmp/movietrack-webstore.zip` to Chrome Web Store.
 - [ ] Add privacy policy URL.
-- [ ] Add permission justifications from `CHROME_WEB_STORE.md`.
-- [ ] Fill evidence in `RELEASE_TEST_PLAN.md`.
+- [ ] Add permission justifications from `docs/chrome-web-store.md`.
+- [ ] Fill evidence in `docs/release-test-plan.md`.
 - [ ] Submit for review.
 
 ## Already Working

@@ -1,0 +1,38 @@
+name: Feature request
+description: Suggest a MovieTrack improvement.
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user problem does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What should MovieTrack do?
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Tracking detection
+        - Popup UI
+        - Supabase sync
+        - Privacy/security
+        - Packaging/release
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: tradeoffs
+    attributes:
+      label: Privacy or permission impact
+      description: Mention any new data collection or browser permission needs.
