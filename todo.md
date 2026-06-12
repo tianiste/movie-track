@@ -6,14 +6,15 @@ Do not mark publish-ready until every required item below is done.
 
 ## Must Do Before Chrome Web Store
 
-- [ ] Host privacy policy at a public URL.
+- [x] Host privacy policy at a public URL.
   - Source content: `PRIVACY_POLICY.md`.
   - Public-hostable HTML page exists at `docs/privacy.html`.
-  - If GitHub Pages is enabled from `main` `/docs`, expected URL is:
+  - GitHub Pages is enabled from `main` `/docs`.
+  - Public URL:
     ```txt
     https://tianiste.github.io/movie-track/privacy.html
     ```
-  - Public URL must not be a local file or private repo URL.
+  - Verified HTTP 200 on June 12, 2026.
   - Add this URL in Chrome Web Store Developer Dashboard.
 
 - [ ] Fill Chrome Web Store privacy practices.
