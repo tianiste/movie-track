@@ -130,6 +130,8 @@ if (/security\s+definer/i.test(migrations)) {
 }
 
 const background = readText('src/background.ts');
+const popup = readText('src/popup.ts');
+const popupHtml = readText('popup.html');
 for (const phrase of [
   '/auth/v1/logout',
   'finally',
@@ -140,6 +142,49 @@ for (const phrase of [
 ]) {
   if (!background.includes(phrase)) {
     fail(`auth/session handling missing invariant: ${phrase}`);
+  }
+}
+
+for (const phrase of [
+  'id="consentCard"',
+  'hidden',
+  'site access before tracking',
+  'active audible tab',
+  'readable video element',
+  'URLs are trimmed',
+  'id="acceptConsentBtn"',
+  'id="privacyLinkBtn"'
+]) {
+  if (!popupHtml.includes(phrase)) {
+    fail(`popup consent disclosure missing invariant: ${phrase}`);
+  }
+}
+
+for (const phrase of [
+  "chrome.permissions.request({ origins: ['<all_urls>'] })",
+  'enabledToggle.disabled = !hasPrivacyConsent || !hasHostAccess',
+  "chrome.runtime.sendMessage({ type: 'acceptPrivacyConsent' })"
+]) {
+  if (!popup.includes(phrase)) {
+    fail(`popup permission flow missing invariant: ${phrase}`);
+  }
+}
+
+for (const phrase of [
+  'chrome.permissions.contains({ origins: [REQUIRED_HOST_PERMISSION] })',
+  'enabled && consentAccepted && hostAccessGranted',
+  'tab.audible === true',
+  "document.querySelectorAll('video')",
+  'function getStoredWatchUrl',
+  "url.hash = '';",
+  "url.search = '';",
+  "new URL('https://www.youtube.com/watch')",
+  "safeUrl.searchParams.set('v', youtubeVideoId)",
+  'chrome.permissions.onRemoved.addListener',
+  'await setStorage(ENABLED_KEY, false)'
+]) {
+  if (!background.includes(phrase)) {
+    fail(`tracking privacy guard missing invariant: ${phrase}`);
   }
 }
 

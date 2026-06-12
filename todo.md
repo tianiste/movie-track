@@ -133,6 +133,9 @@ Use `RELEASE_TEST_PLAN.md` to record final manual proof before submitting to Chr
   - tracked secret-risk file check
   - private secret string scan in runtime source/migrations
   - manifest permission shape
+  - consent and optional host-access flow invariants
+  - active audible video-only tracking invariants
+  - URL stripping and YouTube URL minimization invariants
   - Supabase RLS migration invariants
   - logout/refresh auth handling invariants
   - privacy/deletion disclosure phrases
