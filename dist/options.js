@@ -4,6 +4,7 @@ const localStatusText = document.getElementById('localStatusText');
 const trackingStatusText = document.getElementById('trackingStatusText');
 const signInBtn = document.getElementById('signInBtn');
 const signOutBtn = document.getElementById('signOutBtn');
+const syncLocalBtn = document.getElementById('syncLocalBtn');
 const syncCloudBtn = document.getElementById('syncCloudBtn');
 const deleteCloudBtn = document.getElementById('deleteCloudBtn');
 const exportBtn = document.getElementById('exportBtn');
@@ -42,6 +43,7 @@ function setAuthUiState(response) {
         accountStatusText.textContent = 'Supabase public config missing';
         signInBtn.disabled = true;
         signOutBtn.disabled = true;
+        syncLocalBtn.disabled = true;
         syncCloudBtn.disabled = true;
         deleteCloudBtn.disabled = true;
         renderSyncSummary();
@@ -51,6 +53,7 @@ function setAuthUiState(response) {
         accountStatusText.textContent = response.user?.email || 'Signed in';
         signInBtn.hidden = true;
         signOutBtn.hidden = false;
+        syncLocalBtn.disabled = false;
         syncCloudBtn.disabled = false;
         deleteCloudBtn.disabled = false;
         renderSyncSummary();
@@ -59,6 +62,7 @@ function setAuthUiState(response) {
     accountStatusText.textContent = 'Not signed in';
     signInBtn.hidden = false;
     signOutBtn.hidden = true;
+    syncLocalBtn.disabled = true;
     syncCloudBtn.disabled = true;
     deleteCloudBtn.disabled = true;
     renderSyncSummary();
@@ -133,6 +137,22 @@ async function syncCloudToLocal() {
     }
     syncCloudBtn.disabled = !isSignedIn;
 }
+async function syncLocalToCloud() {
+    if (!isSignedIn) {
+        return;
+    }
+    syncLocalBtn.disabled = true;
+    syncStatusText.textContent = 'Syncing local history to cloud...';
+    const response = (await chrome.runtime.sendMessage({ type: 'syncNow' }));
+    if (response?.ok) {
+        syncStatusText.textContent = `${response.synced ?? 0} local records synced to cloud`;
+        await loadHistory();
+    }
+    else {
+        syncStatusText.textContent = response?.error || 'Local sync failed';
+    }
+    syncLocalBtn.disabled = !isSignedIn;
+}
 async function deleteCloudData() {
     if (!isSignedIn) {
         return;
@@ -189,6 +209,9 @@ signInBtn.addEventListener('click', () => {
 });
 signOutBtn.addEventListener('click', () => {
     void signOut();
+});
+syncLocalBtn.addEventListener('click', () => {
+    void syncLocalToCloud();
 });
 syncCloudBtn.addEventListener('click', () => {
     void syncCloudToLocal();

@@ -43,6 +43,7 @@ const localStatusText = document.getElementById('localStatusText') as HTMLElemen
 const trackingStatusText = document.getElementById('trackingStatusText') as HTMLElement;
 const signInBtn = document.getElementById('signInBtn') as HTMLButtonElement;
 const signOutBtn = document.getElementById('signOutBtn') as HTMLButtonElement;
+const syncLocalBtn = document.getElementById('syncLocalBtn') as HTMLButtonElement;
 const syncCloudBtn = document.getElementById('syncCloudBtn') as HTMLButtonElement;
 const deleteCloudBtn = document.getElementById('deleteCloudBtn') as HTMLButtonElement;
 const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
@@ -91,6 +92,7 @@ function setAuthUiState(response: AuthStatusResponse): void {
     accountStatusText.textContent = 'Supabase public config missing';
     signInBtn.disabled = true;
     signOutBtn.disabled = true;
+    syncLocalBtn.disabled = true;
     syncCloudBtn.disabled = true;
     deleteCloudBtn.disabled = true;
     renderSyncSummary();
@@ -101,6 +103,7 @@ function setAuthUiState(response: AuthStatusResponse): void {
     accountStatusText.textContent = response.user?.email || 'Signed in';
     signInBtn.hidden = true;
     signOutBtn.hidden = false;
+    syncLocalBtn.disabled = false;
     syncCloudBtn.disabled = false;
     deleteCloudBtn.disabled = false;
     renderSyncSummary();
@@ -110,6 +113,7 @@ function setAuthUiState(response: AuthStatusResponse): void {
   accountStatusText.textContent = 'Not signed in';
   signInBtn.hidden = false;
   signOutBtn.hidden = true;
+  syncLocalBtn.disabled = true;
   syncCloudBtn.disabled = true;
   deleteCloudBtn.disabled = true;
   renderSyncSummary();
@@ -205,6 +209,31 @@ async function syncCloudToLocal(): Promise<void> {
   syncCloudBtn.disabled = !isSignedIn;
 }
 
+async function syncLocalToCloud(): Promise<void> {
+  if (!isSignedIn) {
+    return;
+  }
+
+  syncLocalBtn.disabled = true;
+  syncStatusText.textContent = 'Syncing local history to cloud...';
+
+  const response = (await chrome.runtime.sendMessage({ type: 'syncNow' })) as {
+    ok: boolean;
+    synced?: number;
+    failed?: number;
+    error?: string;
+  };
+
+  if (response?.ok) {
+    syncStatusText.textContent = `${response.synced ?? 0} local records synced to cloud`;
+    await loadHistory();
+  } else {
+    syncStatusText.textContent = response?.error || 'Local sync failed';
+  }
+
+  syncLocalBtn.disabled = !isSignedIn;
+}
+
 async function deleteCloudData(): Promise<void> {
   if (!isSignedIn) {
     return;
@@ -270,6 +299,9 @@ signInBtn.addEventListener('click', () => {
 });
 signOutBtn.addEventListener('click', () => {
   void signOut();
+});
+syncLocalBtn.addEventListener('click', () => {
+  void syncLocalToCloud();
 });
 syncCloudBtn.addEventListener('click', () => {
   void syncCloudToLocal();

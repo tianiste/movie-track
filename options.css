@@ -113,6 +113,10 @@ h2 {
   gap: 10px;
 }
 
+.button-grid.three-actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .action-btn,
 .icon-text-btn {
   background: var(--surface-container-highest);
@@ -162,6 +166,10 @@ h2 {
 
   .settings-header,
   .button-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .button-grid.three-actions {
     grid-template-columns: 1fr;
   }
 
