@@ -115,6 +115,20 @@ Do not mark publish-ready until every required item below is done.
 
 ## Local Final Checks
 
+- [x] Run one-command publish verification.
+  ```sh
+  npm run verify:publish
+  ```
+  Last run: June 12, 2026.
+  Covers:
+  - typecheck
+  - Web Store package build
+  - zip content verification
+  - tracked secret-risk file check
+  - private secret string scan in runtime source/migrations
+  - manifest permission shape
+  - privacy/deletion disclosure phrases
+
 - [ ] Check git status.
   ```sh
   git status --short
