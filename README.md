@@ -13,6 +13,19 @@ It watches only your active audible tab, detects a readable video element, saves
 
 > Current status: early public-ready extension. Core local tracking, Google sign-in, Supabase sync, privacy consent, export, cloud delete, filters, and packaged Web Store verification exist. Chrome Web Store release still needs final store submission steps.
 
+## Index
+
+- [Screenshots](#screenshots)
+- [Features](#features)
+- [Install](#install)
+- [Development](#development)
+- [How It Works](#how-it-works)
+- [Supabase Setup](#supabase-setup)
+- [Privacy](#privacy)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [FAQ](#faq)
+
 ## Screenshots
 
 | Popup history | First-run privacy consent | Cross-device sync |
