@@ -4,6 +4,7 @@ const ENABLED_KEY = 'trackingEnabled';
 const HEARTBEAT_ALARM = 'heartbeat';
 const AUTH_SESSION_KEY = 'supabaseAuthSession';
 const PRIVACY_CONSENT_KEY = 'privacyConsentAccepted';
+const REQUIRED_HOST_PERMISSION = '<all_urls>';
 const MIN_DURATION_SEC = 10;
 const MERGE_GAP_MS = 5 * 60 * 1000;
 const HEARTBEAT_MINUTES = 0.08;
@@ -105,6 +106,9 @@ async function getStorage(key, fallback) {
 }
 async function setStorage(key, value) {
     await chrome.storage.local.set({ [key]: value });
+}
+async function hasRequiredHostAccess() {
+    return chrome.permissions.contains({ origins: [REQUIRED_HOST_PERMISSION] });
 }
 function isSupabaseAuthConfigured() {
     if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
@@ -633,11 +637,12 @@ async function getVideoPlaybackInfo(tabId) {
     }
 }
 async function isTrackingEnabled() {
-    const [enabled, consentAccepted] = await Promise.all([
+    const [enabled, consentAccepted, hostAccessGranted] = await Promise.all([
         getStorage(ENABLED_KEY, false),
-        getStorage(PRIVACY_CONSENT_KEY, false)
+        getStorage(PRIVACY_CONSENT_KEY, false),
+        hasRequiredHostAccess()
     ]);
-    return enabled && consentAccepted;
+    return enabled && consentAccepted && hostAccessGranted;
 }
 function getRecordIdentity(record) {
     const youtubeVideoId = getYouTubeVideoId(record.url);
@@ -780,10 +785,13 @@ async function finalizeSession(tabId, endTime = Date.now()) {
     await saveRecord(buildRecord(session));
 }
 async function startOrUpdateSession(tab, now = Date.now()) {
-    if (!(await isTrackingEnabled())) {
+    if (typeof tab.id !== 'number') {
         return;
     }
-    if (typeof tab.id !== 'number') {
+    if (!(await isTrackingEnabled())) {
+        if (activeSessions.has(tab.id)) {
+            await finalizeSession(tab.id, now);
+        }
         return;
     }
     // Primary detection: tab is playing audio, then confirm a real video element.
@@ -915,20 +923,24 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     (async () => {
         const payload = message;
         if (payload?.type === 'getPrivacyStatus') {
-            const [consentAccepted, enabled] = await Promise.all([
+            const [consentAccepted, enabled, hostAccessGranted] = await Promise.all([
                 getStorage(PRIVACY_CONSENT_KEY, false),
-                getStorage(ENABLED_KEY, false)
+                getStorage(ENABLED_KEY, false),
+                hasRequiredHostAccess()
             ]);
-            sendResponse({ ok: true, consentAccepted, enabled });
+            sendResponse({ ok: true, consentAccepted, enabled: enabled && hostAccessGranted, hostAccessGranted });
             return;
         }
         if (payload?.type === 'acceptPrivacyConsent') {
+            const hostAccessGranted = await hasRequiredHostAccess();
             await Promise.all([
                 setStorage(PRIVACY_CONSENT_KEY, true),
-                setStorage(ENABLED_KEY, true)
+                setStorage(ENABLED_KEY, hostAccessGranted)
             ]);
-            await heartbeat();
-            sendResponse({ ok: true, consentAccepted: true, enabled: true });
+            if (hostAccessGranted) {
+                await heartbeat();
+            }
+            sendResponse({ ok: true, consentAccepted: true, enabled: hostAccessGranted, hostAccessGranted });
             return;
         }
         if (payload?.type === 'getAuthStatus') {
@@ -984,9 +996,16 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         }
         if (payload?.type === 'setEnabled') {
             const enabled = Boolean(payload.enabled);
-            const consentAccepted = await getStorage(PRIVACY_CONSENT_KEY, false);
+            const [consentAccepted, hostAccessGranted] = await Promise.all([
+                getStorage(PRIVACY_CONSENT_KEY, false),
+                hasRequiredHostAccess()
+            ]);
             if (enabled && !consentAccepted) {
                 sendResponse({ ok: false, error: 'Privacy consent required' });
+                return;
+            }
+            if (enabled && !hostAccessGranted) {
+                sendResponse({ ok: false, error: 'Site access required' });
                 return;
             }
             await setStorage(ENABLED_KEY, enabled);

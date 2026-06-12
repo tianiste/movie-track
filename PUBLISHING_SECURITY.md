@@ -18,9 +18,9 @@ Required permissions:
 - `alarms`: run periodic active-tab heartbeat.
 - `scripting`: read generic `<video>` playback time and resume progress when allowed by site.
 - `identity`: run Google/Supabase sign-in flow.
-- `<all_urls>`: support video tracking across user-selected streaming/video sites.
+- Optional `<all_urls>`: support video tracking across user-selected streaming/video sites after user consent.
 
-`<all_urls>` is broad but directly tied to MovieTrack's single purpose. The popup gates tracking behind explicit consent, and records are only created for active audible tabs with readable `<video>` playback data.
+`<all_urls>` is broad but directly tied to MovieTrack's single purpose. It is optional host access, not a required install-time host permission. The popup gates tracking behind explicit consent plus a user-granted site-access prompt, and records are only created for active audible tabs with readable `<video>` playback data.
 
 ## Supabase GraphQL Advisor
 

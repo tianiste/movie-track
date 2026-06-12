@@ -148,4 +148,12 @@ for (const file of files.filter((entry) => /\.(?:js|html|css|json)$/i.test(entry
   }
 }
 
+const manifest = JSON.parse(readZipEntry(zip, 'manifest.json'));
+if (manifest.host_permissions?.includes('<all_urls>')) {
+  fail('manifest must not require <all_urls>; use optional_host_permissions');
+}
+if (!manifest.optional_host_permissions?.includes('<all_urls>')) {
+  fail('manifest must declare optional <all_urls> for user-granted cross-site tracking');
+}
+
 console.log(`Package verify passed: ${zipPath}`);

@@ -36,4 +36,4 @@ For account deletion beyond watch-record deletion, contact the publisher through
 
 ## Permissions
 
-MovieTrack uses broad host access because its purpose is to track watch progress across video sites. The extension uses tab metadata and generic video element playback time only when tracking is enabled, consent has been accepted, the tab is active/audible, and a readable video element is present.
+MovieTrack asks for broad site access only when you allow tracking because its purpose is to track watch progress across video sites. The extension uses tab metadata and generic video element playback time only when tracking is enabled, consent has been accepted, site access has been granted, the tab is active/audible, and a readable video element is present.

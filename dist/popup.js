@@ -17,6 +17,7 @@ const deleteCloudBtn = document.getElementById('deleteCloudBtn');
 let allRecords = [];
 let isSignedIn = false;
 let hasPrivacyConsent = false;
+let hasHostAccess = false;
 function formatDuration(seconds) {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
@@ -139,19 +140,33 @@ async function loadPrivacyStatus() {
         return;
     }
     hasPrivacyConsent = Boolean(response.consentAccepted);
-    consentCard.hidden = hasPrivacyConsent;
-    enabledToggle.disabled = !hasPrivacyConsent;
+    hasHostAccess = Boolean(response.hostAccessGranted);
+    consentCard.hidden = hasPrivacyConsent && hasHostAccess;
+    enabledToggle.disabled = !hasPrivacyConsent || !hasHostAccess;
     enabledToggle.checked = Boolean(response.enabled);
+}
+async function requestHostAccess() {
+    return chrome.permissions.request({ origins: ['<all_urls>'] });
 }
 async function acceptPrivacyConsent() {
     acceptConsentBtn.disabled = true;
+    const hostAccessGranted = await requestHostAccess();
+    if (!hostAccessGranted) {
+        syncStatusTextEl.textContent = 'Site access required';
+        acceptConsentBtn.disabled = false;
+        return;
+    }
     const response = (await chrome.runtime.sendMessage({ type: 'acceptPrivacyConsent' }));
     if (response?.ok) {
         hasPrivacyConsent = true;
-        consentCard.hidden = true;
-        enabledToggle.disabled = false;
+        hasHostAccess = Boolean(response.hostAccessGranted);
+        consentCard.hidden = hasHostAccess;
+        enabledToggle.disabled = !hasHostAccess;
         enabledToggle.checked = Boolean(response.enabled);
         await loadData();
+    }
+    else {
+        syncStatusTextEl.textContent = response?.error || 'Tracking unavailable';
     }
     acceptConsentBtn.disabled = false;
 }

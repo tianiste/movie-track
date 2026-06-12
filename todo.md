@@ -60,7 +60,10 @@ Do not mark publish-ready until every required item below is done.
     lgocadpaahlplfilfmacphcfkfghfihl
     ```
   - [x] Confirm service worker starts from packaged files.
+  - [x] Confirm fresh install has no active required host permissions.
+  - [x] Confirm `<all_urls>` is declared only as optional host access.
   - [ ] Confirm first-run consent appears before tracking.
+  - [ ] Confirm clicking Allow tracking prompts for site access.
   - [ ] Confirm Google login works from packaged install.
   - [ ] Confirm watching YouTube/video creates Supabase row from packaged install.
 
@@ -93,7 +96,9 @@ Do not mark publish-ready until every required item below is done.
 
 ## Permissions / Privacy
 
-- [ ] Keep or reduce `<all_urls>`.
+- [x] Keep or reduce `<all_urls>`.
+  - `<all_urls>` is now optional host access, not a required install-time host permission.
+  - It is requested only after the user accepts tracking.
   - Current reason: extension tracks video across arbitrary user-selected video sites.
   - If Chrome rejects broad access, switch to optional host permissions or a smaller site list.
 
