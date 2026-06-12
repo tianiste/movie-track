@@ -784,6 +784,12 @@ async function finalizeSession(tabId, endTime = Date.now()) {
     session.endTime = endTime;
     await saveRecord(buildRecord(session));
 }
+async function stopTrackingSessions(now = Date.now()) {
+    for (const tabId of activeSessions.keys()) {
+        await finalizeSession(tabId, now);
+    }
+    currentActiveTabId = null;
+}
 async function startOrUpdateSession(tab, now = Date.now()) {
     if (typeof tab.id !== 'number') {
         return;
@@ -908,16 +914,20 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 });
 chrome.windows.onFocusChanged.addListener(async (windowId) => {
     if (windowId === chrome.windows.WINDOW_ID_NONE) {
-        if (currentActiveTabId !== null) {
-            await finalizeSession(currentActiveTabId, Date.now());
-            currentActiveTabId = null;
-        }
+        await stopTrackingSessions(Date.now());
         return;
     }
     const activeTab = await getActiveTabInFocusedWindow();
     if (activeTab && typeof activeTab.id === 'number') {
         await onActiveTabChanged(activeTab.id);
     }
+});
+chrome.permissions.onRemoved.addListener(async (permissions) => {
+    if (!permissions.origins?.includes(REQUIRED_HOST_PERMISSION)) {
+        return;
+    }
+    await setStorage(ENABLED_KEY, false);
+    await stopTrackingSessions(Date.now());
 });
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     (async () => {
@@ -1010,10 +1020,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             }
             await setStorage(ENABLED_KEY, enabled);
             if (!enabled) {
-                for (const tabId of activeSessions.keys()) {
-                    await finalizeSession(tabId, Date.now());
-                }
-                currentActiveTabId = null;
+                await stopTrackingSessions(Date.now());
             }
             else {
                 await heartbeat();

@@ -99,6 +99,7 @@ Do not mark publish-ready until every required item below is done.
 - [x] Keep or reduce `<all_urls>`.
   - `<all_urls>` is now optional host access, not a required install-time host permission.
   - It is requested only after the user accepts tracking.
+  - If site access is revoked later, tracking is disabled and active sessions are finalized.
   - Current reason: extension tracks video across arbitrary user-selected video sites.
   - If Chrome rejects broad access, switch to optional host permissions or a smaller site list.
 

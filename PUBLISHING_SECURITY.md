@@ -20,7 +20,7 @@ Required permissions:
 - `identity`: run Google/Supabase sign-in flow.
 - Optional `<all_urls>`: support video tracking across user-selected streaming/video sites after user consent.
 
-`<all_urls>` is broad but directly tied to MovieTrack's single purpose. It is optional host access, not a required install-time host permission. The popup gates tracking behind explicit consent plus a user-granted site-access prompt, and records are only created for active audible tabs with readable `<video>` playback data.
+`<all_urls>` is broad but directly tied to MovieTrack's single purpose. It is optional host access, not a required install-time host permission. The popup gates tracking behind explicit consent plus a user-granted site-access prompt, and records are only created for active audible tabs with readable `<video>` playback data. If site access is later revoked, MovieTrack disables tracking and finalizes any active local session.
 
 ## Supabase GraphQL Advisor
 
