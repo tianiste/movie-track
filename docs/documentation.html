@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MovieTrack Documentation</title>
+    <meta name="description" content="MovieTrack installation, architecture, privacy, and Supabase setup documentation." />
+    <link rel="icon" href="../icons/icon-v3-32.png" />
+    <link rel="stylesheet" href="site.css" />
+  </head>
+  <body>
+    <nav class="site-nav">
+      <div class="shell nav-inner">
+        <a class="brand" href="index.html"><img class="brand-mark" src="../icons/icon-v3-48.png" alt="" /><span>MovieTrack</span></a>
+        <div class="nav-links">
+          <a href="index.html#install">Install</a>
+          <a href="privacy.html">Privacy</a>
+          <a href="open-source.html">Open Source</a>
+          <a href="seo.html">SEO Assets</a>
+        </div>
+        <a class="button secondary" href="https://github.com/tianiste/movie-track">GitHub</a>
+      </div>
+    </nav>
+    <main class="shell">
+      <header class="page-hero">
+        <p class="eyebrow">Documentation</p>
+        <h1>Install, build, verify, ship.</h1>
+        <p class="lead">Docs follow the same flow as GitHub project docs: quick start first, architecture next, release checks last.</p>
+      </header>
+      <div class="doc-layout">
+        <aside class="toc">
+          <a href="#quick-start">Quick start</a>
+          <a href="#architecture">Architecture</a>
+          <a href="#supabase">Supabase</a>
+          <a href="#privacy">Privacy guards</a>
+          <a href="#release">Release checks</a>
+        </aside>
+        <article class="doc">
+          <section id="quick-start">
+            <h2>Quick Start</h2>
+            <pre class="terminal"><code>git clone https://github.com/tianiste/movie-track.git
+cd movie-track
+npm install
+npm run build</code></pre>
+            <p>Open `chrome://extensions` or `brave://extensions`, enable Developer mode, click Load unpacked, then select the repository folder.</p>
+          </section>
+          <section id="architecture">
+            <h2>Architecture</h2>
+            <p>MovieTrack is a Manifest V3 extension. The background service worker watches the active focused tab, checks audible state, reads generic video playback time when site access allows it, and stores local records before cloud sync.</p>
+            <pre class="terminal"><code>active audible tab
+  -> readable video element
+  -> local WatchRecord
+  -> optional Supabase sync
+  -> popup/settings UI</code></pre>
+          </section>
+          <section id="supabase">
+            <h2>Supabase Setup</h2>
+            <p>MovieTrack uses Supabase Auth for Google sign-in and Supabase Postgres for synced watch records. The extension contains only public Supabase config.</p>
+            <pre class="terminal"><code>supabase link --project-ref wyeqtsnjlxixbpnkimmo
+supabase db push</code></pre>
+            <p>Add this redirect URL in Supabase Auth URL configuration:</p>
+            <pre class="terminal"><code>https://lgocadpaahlplfilfmacphcfkfghfihl.chromiumapp.org/supabase-auth</code></pre>
+          </section>
+          <section id="privacy">
+            <h2>Privacy Guards</h2>
+            <ul>
+              <li>Tracking starts after consent and optional site access.</li>
+              <li>Records require active audible video playback.</li>
+              <li>URLs are trimmed before saving.</li>
+              <li>YouTube records keep only the video ID.</li>
+              <li>Supabase RLS scopes rows to `auth.uid() = user_id`.</li>
+            </ul>
+          </section>
+          <section id="release">
+            <h2>Release Checks</h2>
+            <pre class="terminal"><code>npm run typecheck
+npm run verify:publish</code></pre>
+            <p>The publish verifier checks the package ZIP, secret-risk files, manifest permissions, consent flow, URL minimization, logout/session handling, and RLS migration invariants.</p>
+          </section>
+        </article>
+      </div>
+    </main>
+    <footer class="footer"><div class="shell footer-inner"><span>Last updated June 12, 2026.</span><span><a href="index.html">Home</a> / <a href="https://github.com/tianiste/movie-track">GitHub</a></span></div></footer>
+    <script src="site.js"></script>
+  </body>
+</html>

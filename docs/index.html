@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MovieTrack - Open watch progress for every browser</title>
+    <meta name="description" content="MovieTrack is an MIT licensed Chrome extension that tracks movie, anime, and YouTube watch progress with local-first storage and optional Supabase sync." />
+    <meta property="og:title" content="MovieTrack" />
+    <meta property="og:description" content="Local-first watch progress tracking with optional Supabase sync." />
+    <meta property="og:image" content="https://tianiste.github.io/movie-track/assets/site/og-image.png" />
+    <meta property="og:url" content="https://tianiste.github.io/movie-track/" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="../icons/icon-v3-32.png" />
+    <link rel="stylesheet" href="site.css" />
+  </head>
+  <body>
+    <nav class="site-nav">
+      <div class="shell nav-inner">
+        <a class="brand" href="index.html">
+          <img class="brand-mark" src="../icons/icon-v3-48.png" alt="" />
+          <span>MovieTrack</span>
+        </a>
+        <div class="nav-links">
+          <a href="#sites">Sites</a>
+          <a href="#install">Install</a>
+          <a href="documentation.html">Docs</a>
+          <a href="privacy.html">Privacy</a>
+          <a href="open-source.html">Open Source</a>
+        </div>
+        <a class="button secondary" href="https://github.com/tianiste/movie-track">GitHub</a>
+      </div>
+    </nav>
+
+    <main>
+      <section class="shell hero">
+        <div>
+          <p class="eyebrow">MIT Licensed Chrome Extension</p>
+          <h1>Open watch progress for every browser.</h1>
+          <p class="lead">MovieTrack remembers where you stopped across sites. Local-first history, optional account sync.</p>
+          <div class="hero-actions">
+            <a class="button" href="#install">Install manually</a>
+            <a class="button secondary" href="https://github.com/tianiste/movie-track">Source on GitHub</a>
+          </div>
+          <div class="proof-line">
+            <span>MIT Licensed</span>
+            <span>Source available on GitHub</span>
+            <span>Contributions welcome</span>
+          </div>
+        </div>
+        <div class="hero-media" aria-label="MovieTrack extension screenshots">
+          <img class="phone-shot back" src="assets/site/popup-overview.png" alt="MovieTrack popup overview" />
+          <img class="phone-shot front" src="assets/site/history-feed.png" alt="MovieTrack recent activity feed" />
+        </div>
+      </section>
+
+      <section class="section" id="sites">
+        <div class="shell">
+          <div class="section-head reveal">
+            <h2>Built for the messy web you actually watch on.</h2>
+            <p class="section-copy">MovieTrack detects active audible video playback on readable video pages instead of locking you into one platform. Availability and legal status vary by region; use it only with sites you are allowed to access.</p>
+          </div>
+          <div class="site-list reveal">
+            <div class="site-pill">youtube.com</div>
+            <div class="site-pill">youtu.be</div>
+            <div class="site-pill">hianime.se</div>
+            <div class="site-pill">animesalt.to</div>
+            <div class="site-pill">fmovies.to</div>
+            <div class="site-pill">fmovies</div>
+            <div class="site-pill">9anime</div>
+            <div class="site-pill">any readable video page</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shell workflow">
+          <div class="reveal">
+            <p class="eyebrow">How It Works</p>
+            <h2>Track only when the signal is real.</h2>
+            <p class="section-copy">MovieTrack does not save every tab. It waits for privacy consent, site access, an active audible tab, and a readable video element.</p>
+          </div>
+          <div class="steps reveal">
+            <div class="step">
+              <div>
+                <h3>Local first</h3>
+                <p>Records are saved on the device before any cloud sync happens.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div>
+                <h3>Optional account sync</h3>
+                <p>Google sign-in connects records to Supabase so the same account can sync across devices.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div>
+                <h3>Minimal data</h3>
+                <p>URLs are trimmed before storage. YouTube records keep only the video ID.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="install">
+        <div class="shell install">
+          <div class="reveal">
+            <p class="eyebrow">Install</p>
+            <h2>Try it from source today.</h2>
+            <p class="section-copy">Chrome Web Store release is in progress. For now, load MovieTrack manually in Chrome or Brave.</p>
+          </div>
+          <div class="reveal">
+            <pre class="terminal"><code>git clone https://github.com/tianiste/movie-track.git
+cd movie-track
+npm install
+npm run build
+
+# Chrome
+# open chrome://extensions
+
+# Brave
+# open brave://extensions
+
+# Enable Developer mode
+# Click "Load unpacked"
+# Select the movie-track folder</code></pre>
+            <div class="inline-actions">
+              <a class="button" href="https://github.com/tianiste/movie-track">Clone on GitHub</a>
+              <a class="button secondary" href="documentation.html">Read docs</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shell">
+          <div class="section-head reveal">
+            <h2>Settings are separate from history.</h2>
+            <p class="section-copy">The popup stays focused on recent activity. Account, sync, deletion, export, and privacy controls belong in the settings surface.</p>
+          </div>
+          <img class="wide-shot reveal" src="assets/site/settings-page.png" alt="MovieTrack settings page" />
+        </div>
+      </section>
+
+      <section class="section compact">
+        <div class="shell oss-band reveal">
+          <a href="https://github.com/tianiste/movie-track">
+            <p class="eyebrow">Source</p>
+            <h3>Available on GitHub</h3>
+          </a>
+          <a href="https://github.com/tianiste/movie-track/blob/main/LICENSE">
+            <p class="eyebrow">License</p>
+            <h3>MIT Licensed</h3>
+          </a>
+          <a href="https://github.com/tianiste/movie-track/blob/main/CONTRIBUTING.md">
+            <p class="eyebrow">Community</p>
+            <h3>Contributions welcome</h3>
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="shell footer-inner">
+        <span>MovieTrack. Last updated June 12, 2026.</span>
+        <span><a href="privacy.html">Privacy</a> / <a href="documentation.html">Documentation</a> / <a href="https://github.com/tianiste/movie-track">GitHub</a></span>
+      </div>
+    </footer>
+    <script src="site.js"></script>
+  </body>
+</html>

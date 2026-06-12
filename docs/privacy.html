@@ -3,78 +3,66 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MovieTrack Privacy Policy</title>
-    <style>
-      body {
-        margin: 0;
-        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: #0e0e10;
-        color: #f9f5f8;
-        line-height: 1.6;
-      }
-
-      main {
-        max-width: 760px;
-        margin: 0 auto;
-        padding: 32px 20px 48px;
-      }
-
-      h1 {
-        font-size: 28px;
-        margin: 0 0 8px;
-      }
-
-      h2 {
-        font-size: 17px;
-        margin: 28px 0 8px;
-      }
-
-      p,
-      li {
-        color: #d5d1d4;
-        font-size: 14px;
-      }
-
-      a {
-        color: #c799ff;
-      }
-
-      code {
-        background: #1f1f22;
-        border-radius: 4px;
-        padding: 2px 4px;
-      }
-    </style>
+    <title>MovieTrack Privacy</title>
+    <meta name="description" content="MovieTrack privacy policy: local-first watch progress, optional Google sign-in, Supabase sync, and data deletion." />
+    <link rel="icon" href="../icons/icon-v3-32.png" />
+    <link rel="stylesheet" href="site.css" />
   </head>
   <body>
-    <main>
-      <h1>MovieTrack Privacy Policy</h1>
-      <p>Last updated: June 12, 2026</p>
-
-      <h2>What MovieTrack collects</h2>
-      <p>MovieTrack records watch progress for videos you play in your active browser tab when that tab is audible and contains a readable video element. Records can include the page title, trimmed page URL, site hostname, media category, watch time, playback position, video duration, and timestamps.</p>
-
-      <h2>What MovieTrack does not collect</h2>
-      <p>MovieTrack does not collect passwords, cookies, page form data, screenshots, full page content, payment data, audio-only playback, or data from pages that are not active watch sessions. URLs are trimmed before saving to reduce tracking parameters and fragments.</p>
-
-      <h2>How data is used</h2>
-      <p>Data is used only to show your watch history, resume progress, and sync your own progress across devices after Google sign-in.</p>
-      <p>MovieTrack's use of browser permissions and user data is limited to its single purpose: tracking and syncing video watch progress for the user.</p>
-
-      <h2>Where data is stored</h2>
-      <p>Records are saved locally in Chrome extension storage first. After you sign in with Google, records sync to MovieTrack's Supabase database over HTTPS. Supabase Row Level Security restricts each account to its own rows.</p>
-
-      <h2>Data sharing</h2>
-      <p>MovieTrack does not sell user data, use it for advertising, or share it for marketing. Data is processed by Supabase only to provide authentication, database storage, and sync.</p>
-
-      <h2>Delete data</h2>
-      <p>Use the Settings page's Delete cloud data button to delete synced watch records from Supabase and clear local history. Use the popup's Clear button to clear local-only records on the current device.</p>
-
-      <h2>Permissions</h2>
-      <p>MovieTrack requests tab, storage, alarms, scripting, and identity permissions. It asks for broad site access only when you allow tracking so it can detect active audible video tabs, read generic video playback time from readable video elements, sign in with Google, and work across streaming sites.</p>
-
-      <h2>Contact</h2>
-      <p>For account deletion beyond watch-record deletion, contact the publisher through the Chrome Web Store support channel.</p>
+    <nav class="site-nav">
+      <div class="shell nav-inner">
+        <a class="brand" href="index.html"><img class="brand-mark" src="../icons/icon-v3-48.png" alt="" /><span>MovieTrack</span></a>
+        <div class="nav-links"><a href="documentation.html">Docs</a><a href="open-source.html">Open Source</a><a href="https://github.com/tianiste/movie-track">GitHub</a></div>
+        <a class="button secondary" href="index.html#install">Install</a>
+      </div>
+    </nav>
+    <main class="shell">
+      <header class="page-hero">
+        <p class="eyebrow">Privacy Policy</p>
+        <h1>Local-first by default. Sync only after sign-in.</h1>
+        <p class="lead">Last updated: June 12, 2026.</p>
+      </header>
+      <div class="doc-layout">
+        <aside class="toc">
+          <a href="#collects">Collected data</a>
+          <a href="#not-collected">Not collected</a>
+          <a href="#use">Use</a>
+          <a href="#storage">Storage</a>
+          <a href="#deletion">Deletion</a>
+          <a href="#permissions">Permissions</a>
+        </aside>
+        <article class="doc">
+          <section id="collects">
+            <h2>What MovieTrack collects</h2>
+            <p>MovieTrack records watch progress for videos you play in your active browser tab when that tab is audible and contains a readable video element. Records can include trimmed page URL, site hostname, page/video title, media category, watch duration, playback position, video duration when available, start and end timestamps, and Supabase user ID after Google sign-in.</p>
+          </section>
+          <section id="not-collected">
+            <h2>What MovieTrack does not collect</h2>
+            <p>MovieTrack does not collect passwords, cookies, page form data, screenshots, full page content, payment data, audio-only playback, or data from pages that are not active watch sessions. URLs are trimmed before saving to reduce tracking parameters and fragments.</p>
+          </section>
+          <section id="use">
+            <h2>How data is used</h2>
+            <p>Data is used only to show your watch history, resume progress, and sync your own progress across devices after Google sign-in.</p>
+            <p>MovieTrack's use of browser permissions and user data is limited to its single purpose: tracking and syncing video watch progress for the user.</p>
+          </section>
+          <section id="storage">
+            <h2>Where data is stored</h2>
+            <p>Records are saved locally in Chrome extension storage first. After you sign in with Google, records sync to MovieTrack's Supabase database over HTTPS. Supabase Row Level Security restricts each account to its own rows.</p>
+          </section>
+          <section id="deletion">
+            <h2>Delete data</h2>
+            <p>Use the popup or settings page Delete cloud data button to delete synced watch records from Supabase and clear local history. Use Clear local data while signed out to clear local-only records.</p>
+            <p>For account deletion beyond watch-record deletion, contact the publisher through the Chrome Web Store support channel.</p>
+          </section>
+          <section id="permissions">
+            <h2>Permissions</h2>
+            <p>MovieTrack requests tab, storage, alarms, scripting, and identity permissions. It asks for broad site access only when you allow tracking so it can detect active audible video tabs, read generic video playback time from readable video elements, sign in with Google, and work across streaming sites.</p>
+            <p>MovieTrack does not sell user data, use it for advertising, or share it for marketing. Data is processed by Supabase only to provide authentication, database storage, and sync.</p>
+          </section>
+        </article>
+      </div>
     </main>
+    <footer class="footer"><div class="shell footer-inner"><span>Last updated June 12, 2026.</span><span><a href="index.html">Home</a> / <a href="documentation.html">Documentation</a></span></div></footer>
+    <script src="site.js"></script>
   </body>
 </html>
