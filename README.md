@@ -11,6 +11,8 @@ Streaming progress is fragmented. YouTube has its own history. Anime sites have 
 
 It watches only your active audible tab, detects a readable video element, saves a minimized record locally first, and syncs to Supabase after Google sign-in.
 
+**Website:** [tianiste.github.io/movie-track](https://tianiste.github.io/movie-track/)
+
 > Current status: early public-ready extension. Core local tracking, Google sign-in, Supabase sync, privacy consent, export, cloud delete, filters, and packaged Web Store verification exist. Chrome Web Store release still needs final store submission steps.
 
 ## Index
