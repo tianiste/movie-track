@@ -108,7 +108,7 @@ Remaining work before marking Chrome Web Store publication readiness complete.
 
 - [ ] Build final Web Store ZIP:
   ```sh
-  zip -r /tmp/movietrack-webstore.zip manifest.json popup.html popup.css privacy.html dist icons README.md PRIVACY_POLICY.md PUBLISHING_SECURITY.md
+  npm run package:webstore
   ```
 
 - [ ] Inspect ZIP contents:
