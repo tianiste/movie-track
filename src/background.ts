@@ -702,32 +702,54 @@ function parseEpisodeHint(text: string): EpisodeHint {
   return { season: null, episode: null };
 }
 
+function scorePatterns(value: string, patterns: Array<[RegExp, number]>): number {
+  return patterns.reduce((score, [pattern, weight]) => score + (pattern.test(value) ? weight : 0), 0);
+}
+
 function inferMedia(tab: chrome.tabs.Tab): InferredMedia | null {
   const title = tab.title ?? '';
   const url = tab.url ?? '';
-  const combined = `${title} ${url}`.toLowerCase();
 
   if (!url || !/^https?:\/\//i.test(url)) {
     return null;
   }
 
-  // Try to classify as anime or movie based on keywords
-  const animeIndicators = [
-    /\banime\b|\bepisode\b|\bep\s*\d+\b/i,
-    /\bsub\b|\bdub\b|dubbed|subtitled/i,
-    /season\s*\d+|s\d+e\d+/i,
-    /animekai|crunchyroll|9anime|animixplay|gogoanime|zoro|hianime/i
+  const parsedUrl = parseUrl(url);
+  const hostname = parsedUrl?.hostname.replace(/^www\./i, '').toLowerCase() ?? '';
+  const pathname = parsedUrl?.pathname.toLowerCase() ?? '';
+  const combined = `${title} ${hostname} ${pathname}`.toLowerCase();
+
+  const animeSiteIndicators: Array<[RegExp, number]> = [
+    [/(^|\.)anime(?:salt|kai|pahe|flix|dao|freak|heaven|planet|take|suge|unity|owl|fenix|gg|id|tv|to)?\./i, 4],
+    [/(^|\d)9anime\./i, 4],
+    [/(^|\.)ani(?:watch|wave|mixplay|me|lab|list)\./i, 4],
+    [/(^|\.)(crunchyroll|funimation|hidive|vrv)\./i, 4],
+    [/(^|\.)(gogoanime|hianime|zoro|kissanime|animepisode)\./i, 4]
   ];
 
-  const movieIndicators = [
-    /\bmovie\b|\bfilm\b|\bcinema\b/i,
-    /1080p|720p|webrip|bluray|hdtv|dvdrip/i,
-    /fmovies|putlocker|123movies|primewire|soap2day|flixtor/i,
-    /youtube\.com|youtu\.be/i
+  const animeTextIndicators: Array<[RegExp, number]> = [
+    [/\banime\b/i, 3],
+    [/\bepisode\b|\bep\s*\d+\b/i, 2],
+    [/\bsub\b|\bdub\b|dubbed|subtitled/i, 2],
+    [/\bova\b|\bona\b|\bspecial\b/i, 1],
+    [/season\s*\d+|s\d+e\d+/i, 1],
+    [/\/anime(?:\/|-|$)/i, 3],
+    [/watch\s+.+\s+online\s+in\s+hd/i, 1]
   ];
 
-  const animeScore = animeIndicators.reduce((score, re) => score + (re.test(combined) ? 1 : 0), 0);
-  const movieScore = movieIndicators.reduce((score, re) => score + (re.test(combined) ? 1 : 0), 0);
+  const movieSiteIndicators: Array<[RegExp, number]> = [
+    [/(^|\.)(fmovies|putlocker|123movies|primewire|soap2day|flixtor)\./i, 4],
+    [/(^|\.)(netflix|hulu|max|disneyplus|primevideo)\./i, 2]
+  ];
+
+  const movieTextIndicators: Array<[RegExp, number]> = [
+    [/\bmovie\b|\bfilm\b|\bcinema\b/i, 3],
+    [/\bfull\s+movie\b|\bwatch\s+movie\b/i, 2],
+    [/1080p|720p|webrip|bluray|hdtv|dvdrip/i, 1]
+  ];
+
+  const animeScore = scorePatterns(hostname, animeSiteIndicators) + scorePatterns(combined, animeTextIndicators);
+  const movieScore = scorePatterns(hostname, movieSiteIndicators) + scorePatterns(combined, movieTextIndicators);
 
   let mediaType: MediaType = 'unknown';
   if (animeScore >= movieScore && animeScore > 0) {
