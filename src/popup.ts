@@ -51,6 +51,10 @@ const listEl = document.getElementById('list') as HTMLElement;
 const template = document.getElementById('rowTemplate') as HTMLTemplateElement;
 const totalItemsEl = document.getElementById('totalItems') as HTMLElement;
 const totalHoursEl = document.getElementById('totalHours') as HTMLElement;
+const filtersToggleBtn = document.getElementById('filtersToggleBtn') as HTMLButtonElement;
+const filterDrawerEl = document.getElementById('filterDrawer') as HTMLElement;
+const searchFilterEl = document.getElementById('searchFilter') as HTMLInputElement;
+const dateFilterEl = document.getElementById('dateFilter') as HTMLInputElement;
 const filterEl = document.getElementById('typeFilter') as HTMLSelectElement;
 const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
 const clearBtn = document.getElementById('clearBtn') as HTMLButtonElement;
@@ -69,6 +73,7 @@ let allRecords: WatchRecord[] = [];
 let isSignedIn = false;
 let hasPrivacyConsent = false;
 let hasHostAccess = false;
+let isFilterDrawerOpen = false;
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -85,6 +90,14 @@ function formatDate(timestamp: number): string {
   return dt.toLocaleString();
 }
 
+function toDateInputValue(timestamp: number): string {
+  const dt = new Date(timestamp);
+  const year = dt.getFullYear();
+  const month = String(dt.getMonth() + 1).padStart(2, '0');
+  const day = String(dt.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function formatEpisodeLabel(season: number | null, episode: number | null): string {
   if (season !== null && episode !== null) {
     return `S${season} E${episode}`;
@@ -98,13 +111,127 @@ function formatEpisodeLabel(season: number | null, episode: number | null): stri
   return '';
 }
 
+function formatSeasonLabel(season: number | null): string {
+  if (season === null) {
+    return '';
+  }
+
+  return `S${season}`;
+}
+
+function formatEpisodeNumberLabel(episode: number | null): string {
+  if (episode === null) {
+    return '';
+  }
+
+  return `E${episode}`;
+}
+
+function parseSeasonHint(text: string): number | null {
+  const seasonPatterns: RegExp[] = [
+    /\b(?:season|series|seas)\s*[:#._\-/]?\s*(\d{1,2})(?:st|nd|rd|th)?\b/i,
+    /\b(?:season|series)\s*[-_\/\s]*(\d{1,2})(?:st|nd|rd|th)?\b/i,
+    /\bs(?:eason)?\s*[:#._\-/]?\s*(\d{1,2})(?:st|nd|rd|th)?\b/i,
+    /\bs(\d{1,2})(?:\b|[-_\/])/i,
+    /\b(\d{1,2})(?:st|nd|rd|th)?\s*(?:season|series)\b/i
+  ];
+
+  for (const pattern of seasonPatterns) {
+    const match = text.match(pattern);
+    if (match) {
+      return Number(match[1]);
+    }
+  }
+
+  return null;
+}
+
+function parseEpisodeHint(text: string): number | null {
+  const episodePatterns: RegExp[] = [
+    /\b(?:episode|ep|e)\s*[:#._\-/]?\s*(\d{1,4})(?:st|nd|rd|th)?\b/i,
+    /\b(?:part|pt)\s*[:#._\-/]?\s*(\d{1,4})(?:st|nd|rd|th)?\b/i,
+    /\b(?:ova|ona|specials?|extras?)\s*[:#._\-/]?\s*(\d{1,4})(?:st|nd|rd|th)?\b/i,
+    /\b#\s*(\d{1,4})\b/i,
+    /\b(\d{1,4})\s*(?:vostfr|sub|dub|dubbed|subbed)\b/i
+  ];
+
+  for (const pattern of episodePatterns) {
+    const match = text.match(pattern);
+    if (match) {
+      return Number(match[1]);
+    }
+  }
+
+  return null;
+}
+
+function parseSeasonEpisodeFromUrl(urlString: string): { season: number | null; episode: number | null } {
+  try {
+    const url = new URL(urlString);
+    const parts: string[] = [url.pathname, url.hash];
+
+    url.searchParams.forEach((value, key) => {
+      const normalizedKey = key.toLowerCase();
+      if (['s', 'season', 'seasonno', 'season_num', 'seasonnumber', 'seasonid'].includes(normalizedKey)) {
+        parts.push(`season ${value}`);
+      }
+      if (['e', 'ep', 'episode', 'episodeid', 'episode_num', 'episodenumber'].includes(normalizedKey)) {
+        parts.push(`episode ${value}`);
+      }
+      parts.push(value);
+    });
+
+    const text = parts.join(' ');
+    return {
+      season: parseSeasonHint(text),
+      episode: parseEpisodeHint(text)
+    };
+  } catch {
+    return { season: null, episode: null };
+  }
+}
+
+function normalizeFilterText(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function setFilterDrawerOpen(open: boolean): void {
+  isFilterDrawerOpen = open;
+  filterDrawerEl.classList.toggle('open', open);
+  filterDrawerEl.setAttribute('aria-hidden', String(!open));
+  filtersToggleBtn.setAttribute('aria-expanded', String(open));
+}
+
 function getFilteredRecords(): WatchRecord[] {
   const type = filterEl.value;
+  const searchValue = normalizeFilterText(searchFilterEl.value);
+  const dateValue = dateFilterEl.value;
   const sorted = [...allRecords].sort((a, b) => b.startedAt - a.startedAt);
-  if (type === 'all') {
-    return sorted;
-  }
-  return sorted.filter((record) => record.mediaType === type);
+
+  return sorted.filter((record) => {
+    if (type !== 'all' && record.mediaType !== type) {
+      return false;
+    }
+
+    if (dateValue && toDateInputValue(record.startedAt) !== dateValue) {
+      return false;
+    }
+
+    if (searchValue) {
+      const haystack = normalizeFilterText([
+        record.title,
+        record.rawTitle,
+        record.hostname,
+        record.url
+      ].filter(Boolean).join(' '));
+
+      if (!haystack.includes(searchValue)) {
+        return false;
+      }
+    }
+
+    return true;
+  });
 }
 
 function render(): void {
@@ -118,7 +245,7 @@ function render(): void {
 
   if (records.length === 0) {
     const empty = document.createElement('p');
-    empty.textContent = 'No records yet.';
+    empty.textContent = allRecords.length === 0 ? 'No records yet.' : 'No records match your filters.';
     empty.style.color = '#a4a4a4';
     empty.style.fontSize = '12px';
     listEl.append(empty);
@@ -141,6 +268,10 @@ function render(): void {
     const title = record.title || record.rawTitle || record.url;
     const watchedSeconds = Math.max(0, record.lastPlaybackTime ?? 0);
     const videoDurationSec = (record.videoDurationSec ?? 0) > 0 ? (record.videoDurationSec as number) : null;
+    const fallbackText = [record.title, record.rawTitle, record.hostname, record.url].filter(Boolean).join(' ');
+    const urlHint = parseSeasonEpisodeFromUrl(record.url);
+    const seasonValue = record.season ?? parseSeasonHint(fallbackText) ?? urlHint.season;
+    const episodeValue = record.episode ?? parseEpisodeHint(fallbackText) ?? urlHint.episode;
 
     // Badge
     badgeEl.textContent = mediaType.toUpperCase();
@@ -174,9 +305,16 @@ function render(): void {
       metaText.textContent = isToday ? 'Today' : recordDate.toLocaleDateString();
     }
     if (metaItems[2]) {
-      const episodeLabel = formatEpisodeLabel(record.season, record.episode);
       const metaItem = metaItems[2] as HTMLElement;
       const metaText = metaItem.querySelector('.meta-text') as HTMLElement;
+      const seasonLabel = formatSeasonLabel(seasonValue);
+      metaItem.hidden = !seasonLabel;
+      metaText.textContent = seasonLabel;
+    }
+    if (metaItems[3]) {
+      const metaItem = metaItems[3] as HTMLElement;
+      const metaText = metaItem.querySelector('.meta-text') as HTMLElement;
+      const episodeLabel = formatEpisodeNumberLabel(episodeValue);
       metaItem.hidden = !episodeLabel;
       metaText.textContent = episodeLabel;
     }
@@ -432,6 +570,11 @@ async function deleteCloudData(): Promise<void> {
 }
 
 filterEl.addEventListener('change', render);
+searchFilterEl.addEventListener('input', render);
+dateFilterEl.addEventListener('change', render);
+filtersToggleBtn.addEventListener('click', () => {
+  setFilterDrawerOpen(!isFilterDrawerOpen);
+});
 exportBtn.addEventListener('click', exportData);
 clearBtn.addEventListener('click', clearData);
 enabledToggle.addEventListener('change', () => {
@@ -457,6 +600,7 @@ privacyLinkBtn.addEventListener('click', () => {
 });
 
 async function init(): Promise<void> {
+  setFilterDrawerOpen(false);
   await loadPrivacyStatus();
   await loadData();
   await loadAuthStatus();

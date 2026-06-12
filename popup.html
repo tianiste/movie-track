@@ -77,24 +77,45 @@
 
       <!-- Action Bar -->
       <section class="action-bar">
-        <div class="filter-wrapper">
-          <select id="typeFilter" class="filter-select">
-            <option value="all">All Categories</option>
-            <option value="anime">Anime</option>
-            <option value="movie">Movie</option>
-            <option value="youtube">YouTube</option>
-            <option value="unknown">Unknown</option>
-          </select>
-          <span class="material-symbols-outlined filter-icon">expand_more</span>
+        <button id="filtersToggleBtn" class="action-btn filters-btn" aria-expanded="false" aria-controls="filterDrawer">
+          <span class="material-symbols-outlined">filter_list</span>
+          Filters
+        </button>
+        <div class="action-row-secondary">
+          <button id="exportBtn" class="action-btn export-btn">
+            <span class="material-symbols-outlined">ios_share</span>
+            Export
+          </button>
+          <button id="clearBtn" class="action-btn clear-btn">
+            <span class="material-symbols-outlined">delete_sweep</span>
+            Clear
+          </button>
         </div>
-        <button id="exportBtn" class="action-btn export-btn">
-          <span class="material-symbols-outlined">ios_share</span>
-          Export
-        </button>
-        <button id="clearBtn" class="action-btn clear-btn">
-          <span class="material-symbols-outlined">delete_sweep</span>
-          Clear
-        </button>
+      </section>
+
+      <section id="filterDrawer" class="filter-drawer" aria-hidden="true">
+        <div class="filter-grid">
+          <label class="filter-field">
+            <span class="filter-label">Search</span>
+            <input id="searchFilter" class="filter-input" type="search" placeholder="Title, site, or URL" />
+          </label>
+
+          <label class="filter-field">
+            <span class="filter-label">Date</span>
+            <input id="dateFilter" class="filter-input" type="date" />
+          </label>
+
+          <label class="filter-field">
+            <span class="filter-label">Category</span>
+            <select id="typeFilter" class="filter-select">
+              <option value="all">All Categories</option>
+              <option value="anime">Anime</option>
+              <option value="movie">Movie</option>
+              <option value="youtube">YouTube</option>
+              <option value="unknown">Unknown</option>
+            </select>
+          </label>
+        </div>
       </section>
 
       <!-- Records List -->
@@ -126,6 +147,10 @@
           </div>
           <div class="meta-item">
             <span class="material-symbols-outlined meta-icon">calendar_today</span>
+            <span class="meta-text"></span>
+          </div>
+          <div class="meta-item season-meta" hidden>
+            <span class="material-symbols-outlined meta-icon">movie</span>
             <span class="meta-text"></span>
           </div>
           <div class="meta-item episode-meta" hidden>

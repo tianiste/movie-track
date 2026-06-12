@@ -35,7 +35,7 @@ Use `RELEASE_TEST_PLAN.md` to record final manual proof before submitting to Chr
   - Account B watches video for 5+ seconds.
   - Confirm Supabase `watch_records` has separate `user_id` values.
 
-- [ ] Test logout.
+- [x] Test logout.
   - Record evidence in `RELEASE_TEST_PLAN.md`.
   - Sign in.
   - Confirm cloud sync works.
@@ -44,7 +44,7 @@ Use `RELEASE_TEST_PLAN.md` to record final manual proof before submitting to Chr
   - Confirm popup is signed out.
   - Confirm local-only tracking still works after sign-out.
 
-- [ ] Test token expiry/refresh.
+- [x] Test token expiry/refresh.
   - Record evidence in `RELEASE_TEST_PLAN.md`.
   - Leave signed in long enough for refresh path, or manually invalidate session.
   - Code now clears local auth state for invalid/revoked refresh tokens.
@@ -68,10 +68,10 @@ Use `RELEASE_TEST_PLAN.md` to record final manual proof before submitting to Chr
   - [x] Confirm service worker starts from packaged files.
   - [x] Confirm fresh install has no active required host permissions.
   - [x] Confirm `<all_urls>` is declared only as optional host access.
-  - [ ] Confirm first-run consent appears before tracking.
-  - [ ] Confirm clicking Allow tracking prompts for site access.
-  - [ ] Confirm Google login works from packaged install.
-  - [ ] Confirm watching YouTube/video creates Supabase row from packaged install.
+  - [x] Confirm first-run consent appears before tracking.
+  - [x] Confirm clicking Allow tracking prompts for site access.
+  - [x] Confirm Google login works from packaged install.
+  - [x] Confirm watching YouTube/video creates Supabase row from packaged install.
 
 ## Security / Supabase
 

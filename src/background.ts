@@ -682,40 +682,107 @@ function normalizeTitle(title = ''): string {
 }
 
 function parseEpisodeHint(text: string): EpisodeHint {
-  const seasonEpisodeMatch = text.match(/\bs(\d{1,2})\s*e(\d{1,3})\b/i);
-  const seasonEpisodeWordsMatch = text.match(/\bseason\s*(\d{1,2})\D{0,12}(?:episode|ep)\s*(\d{1,3})\b/i);
-  const episodeMatch = text.match(/\b(?:episode|ep)\s*(\d{1,4})\b/i);
-  const plainEpisodeMatch = text.match(/\b(\d{1,4})\s*(?:vostfr|sub|dub|dubbed|subbed)\b/i);
+  const seasonEpisodePatterns: RegExp[] = [
+    /\b(?:season|series|seas)\s*[:#._\-/]?\s*(\d{1,2})(?:st|nd|rd|th)?\b\D{0,16}(?:episode|ep|e)\s*[:#._\-/]?\s*(\d{1,3})(?:st|nd|rd|th)?\b/i,
+    /\b(?:s(?:eason)?|series)\s*[:#._\-/]?\s*(\d{1,2})(?:st|nd|rd|th)?\b\D{0,16}(?:episode|ep|e)\s*[:#._\-/]?\s*(\d{1,3})(?:st|nd|rd|th)?\b/i,
+    /\b(?:season|series)\s*[-_\/\s]*(\d{1,2})(?:st|nd|rd|th)?\b\D{0,16}(?:episode|ep|e)\s*[:#._\-/]?\s*(\d{1,3})(?:st|nd|rd|th)?\b/i,
+    /\b(\d{1,2})\s*x\s*(\d{1,3})\b/i,
+    /\bs(\d{1,2})e(\d{1,3})\b/i
+  ];
+  const episodePatterns: RegExp[] = [
+    /\b(?:episode|ep|e)\s*[:#._\-/]?\s*(\d{1,4})(?:st|nd|rd|th)?\b/i,
+    /\b(?:part|pt)\s*[:#._\-/]?\s*(\d{1,4})(?:st|nd|rd|th)?\b/i,
+    /\b(?:ova|ona|specials?|extras?)\s*[:#._\-/]?\s*(\d{1,4})(?:st|nd|rd|th)?\b/i,
+    /\b#\s*(\d{1,4})\b/i,
+    /\b(\d{1,4})\s*(?:vostfr|sub|dub|dubbed|subbed)\b/i
+  ];
 
-  if (seasonEpisodeMatch) {
-    return {
-      season: Number(seasonEpisodeMatch[1]),
-      episode: Number(seasonEpisodeMatch[2])
-    };
+  for (const pattern of seasonEpisodePatterns) {
+    const match = text.match(pattern);
+    if (match) {
+      return {
+        season: Number(match[1]),
+        episode: Number(match[2])
+      };
+    }
   }
 
-  if (seasonEpisodeWordsMatch) {
-    return {
-      season: Number(seasonEpisodeWordsMatch[1]),
-      episode: Number(seasonEpisodeWordsMatch[2])
-    };
-  }
-
-  if (episodeMatch) {
-    return {
-      season: null,
-      episode: Number(episodeMatch[1])
-    };
-  }
-
-  if (plainEpisodeMatch) {
-    return {
-      season: null,
-      episode: Number(plainEpisodeMatch[1])
-    };
+  for (const pattern of episodePatterns) {
+    const match = text.match(pattern);
+    if (match) {
+      return {
+        season: null,
+        episode: Number(match[1])
+      };
+    }
   }
 
   return { season: null, episode: null };
+}
+
+function parseSeasonHint(text: string): number | null {
+  const seasonPatterns: RegExp[] = [
+    /\b(?:season|series|seas)\s*[:#._\-/]?\s*(\d{1,2})(?:st|nd|rd|th)?\b/i,
+    /\b(?:season|series)\s*[-_\/\s]*(\d{1,2})(?:st|nd|rd|th)?\b/i,
+    /\bs(?:eason)?\s*[:#._\-/]?\s*(\d{1,2})(?:st|nd|rd|th)?\b/i,
+    /\bs(\d{1,2})(?:\b|[-_\/])/i,
+    /\b(\d{1,2})(?:st|nd|rd|th)?\s*(?:season|series)\b/i
+  ];
+
+  for (const pattern of seasonPatterns) {
+    const match = text.match(pattern);
+    if (match) {
+      return Number(match[1]);
+    }
+  }
+
+  return null;
+}
+
+function parseEpisodeHintFromUrl(urlString: string): EpisodeHint {
+  const parsedUrl = parseUrl(urlString);
+  if (!parsedUrl) {
+    return { season: null, episode: null };
+  }
+
+  const queryParts: string[] = [];
+  parsedUrl.searchParams.forEach((value, key) => {
+    if (!value.trim()) {
+      return;
+    }
+
+    const normalizedKey = key.toLowerCase();
+    if (['s', 'season', 'seasonno', 'season_num', 'seasonnumber', 'seasonid'].includes(normalizedKey)) {
+      queryParts.push(`season ${value}`);
+    }
+    if (['e', 'ep', 'episode', 'episodeid', 'episode_num', 'episodenumber'].includes(normalizedKey)) {
+      queryParts.push(`episode ${value}`);
+    }
+
+    queryParts.push(value);
+  });
+
+  const urlHint = parseEpisodeHint([
+    parsedUrl.pathname,
+    parsedUrl.hash,
+    ...queryParts
+  ].join(' '));
+
+  return {
+    season: parseSeasonHint([
+      parsedUrl.pathname,
+      parsedUrl.hash,
+      ...queryParts
+    ].join(' ')) ?? urlHint.season,
+    episode: urlHint.episode
+  };
+}
+
+function mergeEpisodeHints(primary: EpisodeHint, fallback: EpisodeHint): EpisodeHint {
+  return {
+    season: primary.season ?? fallback.season,
+    episode: primary.episode ?? fallback.episode
+  };
 }
 
 function scorePatterns(value: string, patterns: Array<[RegExp, number]>): number {
@@ -778,7 +845,16 @@ function inferMedia(tab: chrome.tabs.Tab): InferredMedia | null {
   }
 
   const cleanedTitle = normalizeTitle(title) || title || url;
-  const { season, episode } = parseEpisodeHint(`${title} ${url}`);
+  const titleHint = parseEpisodeHint(title);
+  const titleSeason = parseSeasonHint(title);
+  const urlHint = parseEpisodeHintFromUrl(url);
+  const { season, episode } = mergeEpisodeHints(
+    {
+      season: titleHint.season ?? titleSeason,
+      episode: titleHint.episode
+    },
+    urlHint
+  );
 
   return {
     mediaType,
