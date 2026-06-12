@@ -41,6 +41,11 @@ const sourceGlobs = [
   'supabase/migrations/20260611224833_harden_watch_records_functions.sql'
 ];
 
+const migrationFiles = [
+  'supabase/migrations/20260611224728_create_watch_records.sql',
+  'supabase/migrations/20260611224833_harden_watch_records_functions.sql'
+];
+
 function fail(message) {
   console.error(`Publish verify failed: ${message}`);
   process.exit(1);
@@ -97,6 +102,45 @@ if (manifest.host_permissions?.includes('<all_urls>')) {
 }
 if (!manifest.optional_host_permissions?.includes('<all_urls>')) {
   fail('manifest must declare optional <all_urls>');
+}
+
+const migrations = migrationFiles.map(readText).join('\n').toLowerCase();
+for (const phrase of [
+  'alter table public.watch_records enable row level security',
+  'alter table public.watch_records force row level security',
+  'revoke all on table public.watch_records from anon',
+  'grant select, insert, update, delete',
+  'to authenticated',
+  'using ((select auth.uid()) = user_id)',
+  'with check ((select auth.uid()) = user_id)'
+]) {
+  if (!migrations.includes(phrase)) {
+    fail(`RLS migration missing invariant: ${phrase}`);
+  }
+}
+
+if (/grant\s+.+\s+on\s+table\s+public\.watch_records\s+to\s+anon/i.test(migrations)) {
+  fail('watch_records must not grant table access to anon');
+}
+if (/auth\.role\s*\(/i.test(migrations)) {
+  fail('RLS policies must use TO clauses instead of auth.role()');
+}
+if (/security\s+definer/i.test(migrations)) {
+  fail('public watch_records migrations must not add SECURITY DEFINER');
+}
+
+const background = readText('src/background.ts');
+for (const phrase of [
+  '/auth/v1/logout',
+  'finally',
+  'await clearSupabaseSession()',
+  'response.status === 400 || response.status === 401 || response.status === 403',
+  'return null',
+  'refresh_token: session.refreshToken'
+]) {
+  if (!background.includes(phrase)) {
+    fail(`auth/session handling missing invariant: ${phrase}`);
+  }
 }
 
 const privacyPolicy = readText('PRIVACY_POLICY.md');

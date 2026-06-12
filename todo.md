@@ -127,6 +127,8 @@ Do not mark publish-ready until every required item below is done.
   - tracked secret-risk file check
   - private secret string scan in runtime source/migrations
   - manifest permission shape
+  - Supabase RLS migration invariants
+  - logout/refresh auth handling invariants
   - privacy/deletion disclosure phrases
 
 - [ ] Check git status.
