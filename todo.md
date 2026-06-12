@@ -78,14 +78,14 @@ Do not mark publish-ready until every required item below is done.
     - `pg_graphql_authenticated_table_exposed`
     - `auth_leaked_password_protection`
 
-- [ ] Decide final GraphQL warning handling.
+- [x] Decide final GraphQL warning handling.
   - Current warning:
     ```txt
     pg_graphql_authenticated_table_exposed
     ```
-  - Current decision: accepted/documented in `PUBLISHING_SECURITY.md`.
+  - Decision: accepted/documented in `PUBLISHING_SECURITY.md`.
   - Reason: RLS is enabled and forced; rows are owner-scoped by `user_id = auth.uid()`.
-  - If you want zero warning: disable GraphQL exposure in Supabase or move API table/view to dedicated exposed schema.
+  - If a reviewer/security requirement demands zero warning later: disable GraphQL exposure in Supabase or move API table/view to dedicated exposed schema.
 
 - [ ] Enable leaked password protection if email/password auth is enabled.
   - Low priority if app stays Google-login-only.
@@ -101,14 +101,14 @@ Do not mark publish-ready until every required item below is done.
   - It is requested only after the user accepts tracking.
   - If site access is revoked later, tracking is disabled and active sessions are finalized.
   - Current reason: extension tracks video across arbitrary user-selected video sites.
-  - If Chrome rejects broad access, switch to optional host permissions or a smaller site list.
+  - If Chrome rejects broad optional access, switch to a smaller site list.
 
-- [ ] Keep data minimal.
+- [x] Keep data minimal.
   - Strip query/hash from URLs.
   - Keep YouTube URL minimized to video ID.
   - Do not store page text, screenshots, cookies, or unrelated browsing history.
 
-- [ ] Make account/data deletion path clear.
+- [x] Make account/data deletion path clear.
   - In extension: delete cloud data button exists.
   - In privacy policy: explain deletion method.
   - In store listing: do not imply data is impossible to delete.
