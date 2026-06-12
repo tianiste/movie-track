@@ -2,7 +2,7 @@
 
 Last updated: June 12, 2026
 
-MovieTrack records watch progress for videos you play in your active browser tab.
+MovieTrack records watch progress for videos you play in your active browser tab when that tab is audible and contains a readable video element.
 
 ## Data Collected
 
@@ -16,7 +16,7 @@ MovieTrack records watch progress for videos you play in your active browser tab
 - Start and end timestamps
 - Supabase user ID after Google sign-in
 
-MovieTrack does not collect passwords, cookies, form data, screenshots, payment data, full page content, or data from inactive tabs. URLs are trimmed before saving to reduce query parameters, fragments, and tracking data.
+MovieTrack does not collect passwords, cookies, form data, screenshots, payment data, full page content, audio-only playback, or data from inactive tabs. URLs are trimmed before saving to reduce query parameters, fragments, and tracking data.
 
 ## Use
 
@@ -36,4 +36,4 @@ For account deletion beyond watch-record deletion, contact the publisher through
 
 ## Permissions
 
-MovieTrack uses broad host access because its purpose is to track watch progress across video sites. The extension uses tab metadata and generic video element playback time only when tracking is enabled and consent has been accepted.
+MovieTrack uses broad host access because its purpose is to track watch progress across video sites. The extension uses tab metadata and generic video element playback time only when tracking is enabled, consent has been accepted, the tab is active/audible, and a readable video element is present.

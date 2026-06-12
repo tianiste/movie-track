@@ -743,7 +743,7 @@ async function startOrUpdateSession(tab, now = Date.now()) {
     if (typeof tab.id !== 'number') {
         return;
     }
-    // Primary detection: tab is playing audio (bulletproof for any streaming site)
+    // Primary detection: tab is playing audio, then confirm a real video element.
     const isAudible = tab.audible === true;
     const existing = activeSessions.get(tab.id);
     console.debug('[MovieTrack] Tab', tab.id, 'audible:', isAudible, 'title:', tab.title);
@@ -754,27 +754,27 @@ async function startOrUpdateSession(tab, now = Date.now()) {
         }
         return;
     }
+    const playback = await getVideoPlaybackInfo(tab.id);
+    if (!playback) {
+        if (existing) {
+            console.debug('[MovieTrack] Video element unavailable; ending session');
+            await finalizeSession(tab.id, now);
+        }
+        return;
+    }
     // Audio is playing; classify content type for metadata
     const inferred = inferMedia(tab);
     console.debug('[MovieTrack] Inferred:', inferred);
     if (existing && existing.url === tab.url && existing.title === (tab.title ?? '')) {
-        // Session continuing; update playback from page video element if available
-        const playback = await getVideoPlaybackInfo(tab.id);
-        if (playback) {
-            existing.lastPlaybackTime = playback.currentTimeSec;
-            if (playback.durationSec && playback.durationSec > 0) {
-                existing.videoDurationSec = playback.durationSec;
-            }
-        }
-        else {
-            existing.lastPlaybackTime = Math.round((now - existing.startTime) / 1000);
+        existing.lastPlaybackTime = playback.currentTimeSec;
+        if (playback.durationSec && playback.durationSec > 0) {
+            existing.videoDurationSec = playback.durationSec;
         }
         return;
     }
     if (existing) {
         await finalizeSession(tab.id, now);
     }
-    const playback = await getVideoPlaybackInfo(tab.id);
     console.debug('[MovieTrack] Starting new session for tab', tab.id);
     activeSessions.set(tab.id, {
         tabId: tab.id,

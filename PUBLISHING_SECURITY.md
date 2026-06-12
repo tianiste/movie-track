@@ -13,14 +13,14 @@ MovieTrack handles sensitive user data under Chrome Web Store policy because it 
 
 Required permissions:
 
-- `tabs`: read active tab URL/title/audible state.
+- `tabs`: read active tab URL/title/audible state for candidate watch sessions.
 - `storage`: save local records, consent flag, tracking setting, and Supabase session.
 - `alarms`: run periodic active-tab heartbeat.
 - `scripting`: read generic `<video>` playback time and resume progress when allowed by site.
 - `identity`: run Google/Supabase sign-in flow.
 - `<all_urls>`: support video tracking across user-selected streaming/video sites.
 
-`<all_urls>` is broad but directly tied to MovieTrack's single purpose. The popup now gates tracking behind explicit consent.
+`<all_urls>` is broad but directly tied to MovieTrack's single purpose. The popup gates tracking behind explicit consent, and records are only created for active audible tabs with readable `<video>` playback data.
 
 ## Supabase GraphQL Advisor
 
