@@ -15,19 +15,9 @@ It watches only your active audible tab, detects a readable video element, saves
 
 ## Screenshots
 
-Add these before public launch:
-
 | Popup history | First-run privacy consent | Cross-device sync |
 | --- | --- | --- |
-| `docs/screenshots/popup-history.png` | `docs/screenshots/privacy-consent.png` | `docs/screenshots/sync-demo.gif` |
-
-Suggested demo GIF:
-
-1. Play a YouTube/anime/movie video.
-2. Open MovieTrack popup.
-3. Show watch record, media type, season/episode when detected, and progress.
-4. Sign in on another browser profile.
-5. Click **Sync cloud** and show same account history.
+| ![MovieTrack popup history](docs/screenshots/popup-history.png) | ![MovieTrack privacy consent](docs/screenshots/privacy-consent.png) | ![MovieTrack sync demo](docs/screenshots/sync-demo.gif) |
 
 ## Features
 

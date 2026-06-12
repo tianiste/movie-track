@@ -2,15 +2,16 @@
 
 Store public README visuals here.
 
-Expected files before public launch:
+Current files:
 
 ```txt
 popup-history.png
 privacy-consent.png
+sync-account.png
 sync-demo.gif
 ```
 
-Capture checklist:
+Refresh checklist:
 
 - Use a clean browser profile.
 - Avoid showing private email addresses unless intentionally blurred.
