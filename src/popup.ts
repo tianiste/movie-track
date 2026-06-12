@@ -295,10 +295,14 @@ async function setEnabled(enabled: boolean): Promise<void> {
 
 function setAuthUiState(response: AuthStatusResponse): void {
   isSignedIn = Boolean(response.signedIn);
+  signInBtn.hidden = isSignedIn;
+  signOutBtn.hidden = !isSignedIn;
 
   if (!response.configured) {
     authStatusTextEl.textContent = 'Set Supabase public config';
     syncStatusTextEl.textContent = 'Sync disabled';
+    signInBtn.hidden = false;
+    signOutBtn.hidden = true;
     signInBtn.disabled = true;
     signOutBtn.disabled = true;
     syncCloudBtn.disabled = true;
