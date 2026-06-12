@@ -24,6 +24,8 @@ MovieTrack uses this data only to show watch history, resume progress, and sync 
 
 MovieTrack does not sell data, use data for ads, or transfer data for marketing.
 
+MovieTrack's use of browser permissions and user data is limited to its single purpose: tracking and syncing video watch progress for the user.
+
 ## Storage
 
 Records are saved locally in Chrome extension storage first. After Google sign-in, records sync to Supabase over HTTPS. Supabase Row Level Security restricts each user to their own records.

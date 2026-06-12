@@ -113,7 +113,8 @@ for (const [name, content] of [
     'Supabase',
     'Google sign-in',
     'URLs are trimmed',
-    'does not sell'
+    'does not sell',
+    'limited to its single purpose'
   ]) {
     if (!content.includes(phrase)) {
       fail(`${name} missing privacy phrase: ${phrase}`);

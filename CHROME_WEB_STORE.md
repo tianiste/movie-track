@@ -2,6 +2,19 @@
 
 Use this file while filling the Chrome Web Store listing and privacy practices.
 
+Official policy cross-check used on June 12, 2026:
+
+- https://developer.chrome.com/docs/webstore/program-policies/user-data-faq
+- https://developer.chrome.com/docs/webstore/cws-dashboard-privacy
+
+Important matching points:
+
+- Browsing/video history and Google sign-in count as sensitive user data.
+- A privacy policy is required even if data is stored locally.
+- Data handling must match the privacy policy, dashboard disclosures, and extension behavior.
+- Permissions must be the narrowest set needed for the current user-facing feature.
+- User data and browser permissions must be used only for the extension's single purpose.
+
 ## Privacy Policy URL
 
 Host `PRIVACY_POLICY.md` as a public web page. Use that public URL in the Developer Dashboard.
@@ -59,6 +72,10 @@ Data sale/transfer:
 - Data is not used for ads.
 - Data is not transferred for marketing.
 - Data is processed by Supabase for authentication and database sync.
+
+Limited Use disclosure:
+
+MovieTrack's use of browser permissions and user data is limited to its single purpose: tracking and syncing video watch progress for the user.
 
 ## Store Description Draft
 
