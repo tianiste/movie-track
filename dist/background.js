@@ -526,18 +526,32 @@ function normalizeTitle(title = '') {
         .trim();
 }
 function parseEpisodeHint(text) {
-    const episodeMatch = text.match(/\b(?:episode|ep)\s*(\d{1,4})\b/i);
     const seasonEpisodeMatch = text.match(/\bs(\d{1,2})\s*e(\d{1,3})\b/i);
+    const seasonEpisodeWordsMatch = text.match(/\bseason\s*(\d{1,2})\D{0,12}(?:episode|ep)\s*(\d{1,3})\b/i);
+    const episodeMatch = text.match(/\b(?:episode|ep)\s*(\d{1,4})\b/i);
+    const plainEpisodeMatch = text.match(/\b(\d{1,4})\s*(?:vostfr|sub|dub|dubbed|subbed)\b/i);
     if (seasonEpisodeMatch) {
         return {
             season: Number(seasonEpisodeMatch[1]),
             episode: Number(seasonEpisodeMatch[2])
         };
     }
+    if (seasonEpisodeWordsMatch) {
+        return {
+            season: Number(seasonEpisodeWordsMatch[1]),
+            episode: Number(seasonEpisodeWordsMatch[2])
+        };
+    }
     if (episodeMatch) {
         return {
             season: null,
             episode: Number(episodeMatch[1])
+        };
+    }
+    if (plainEpisodeMatch) {
+        return {
+            season: null,
+            episode: Number(plainEpisodeMatch[1])
         };
     }
     return { season: null, episode: null };

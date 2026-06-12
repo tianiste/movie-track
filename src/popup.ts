@@ -85,6 +85,19 @@ function formatDate(timestamp: number): string {
   return dt.toLocaleString();
 }
 
+function formatEpisodeLabel(season: number | null, episode: number | null): string {
+  if (season !== null && episode !== null) {
+    return `S${season} E${episode}`;
+  }
+  if (episode !== null) {
+    return `Ep ${episode}`;
+  }
+  if (season !== null) {
+    return `Season ${season}`;
+  }
+  return '';
+}
+
 function getFilteredRecords(): WatchRecord[] {
   const type = filterEl.value;
   const sorted = [...allRecords].sort((a, b) => b.startedAt - a.startedAt);
@@ -159,6 +172,13 @@ function render(): void {
       const recordDate = new Date(record.startedAt);
       const isToday = today.toDateString() === recordDate.toDateString();
       metaText.textContent = isToday ? 'Today' : recordDate.toLocaleDateString();
+    }
+    if (metaItems[2]) {
+      const episodeLabel = formatEpisodeLabel(record.season, record.episode);
+      const metaItem = metaItems[2] as HTMLElement;
+      const metaText = metaItem.querySelector('.meta-text') as HTMLElement;
+      metaItem.hidden = !episodeLabel;
+      metaText.textContent = episodeLabel;
     }
 
     // Progress bar width (percentage of video watched)
