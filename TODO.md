@@ -86,6 +86,8 @@ Remaining work before marking Chrome Web Store publication readiness complete.
     - `MovieTrack.pem`
     - `MovieTrack.crx`
     - `supabase/.temp/`
+    - source maps
+    - repo docs/checklists
     - private keys or secrets
 
 ## Final Local Checks
