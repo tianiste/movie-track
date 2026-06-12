@@ -13,6 +13,7 @@ const authStatusTextEl = document.getElementById('authStatusText');
 const syncStatusTextEl = document.getElementById('syncStatusText');
 const signInBtn = document.getElementById('signInBtn');
 const signOutBtn = document.getElementById('signOutBtn');
+const syncCloudBtn = document.getElementById('syncCloudBtn');
 const deleteCloudBtn = document.getElementById('deleteCloudBtn');
 let allRecords = [];
 let isSignedIn = false;
@@ -214,6 +215,7 @@ function setAuthUiState(response) {
         syncStatusTextEl.textContent = 'Sync disabled';
         signInBtn.disabled = true;
         signOutBtn.disabled = true;
+        syncCloudBtn.disabled = true;
         deleteCloudBtn.disabled = true;
         return;
     }
@@ -221,6 +223,7 @@ function setAuthUiState(response) {
         authStatusTextEl.textContent = response.user?.email || 'Signed in';
         signInBtn.disabled = true;
         signOutBtn.disabled = false;
+        syncCloudBtn.disabled = false;
         deleteCloudBtn.disabled = false;
         renderSyncSummary();
         return;
@@ -228,6 +231,7 @@ function setAuthUiState(response) {
     authStatusTextEl.textContent = 'Not signed in';
     signInBtn.disabled = false;
     signOutBtn.disabled = true;
+    syncCloudBtn.disabled = true;
     deleteCloudBtn.disabled = true;
     renderSyncSummary();
 }
@@ -256,6 +260,23 @@ async function signOut() {
     await chrome.runtime.sendMessage({ type: 'signOut' });
     await loadAuthStatus();
     await loadData();
+}
+async function syncCloudToLocal() {
+    if (!isSignedIn) {
+        return;
+    }
+    syncCloudBtn.disabled = true;
+    syncStatusTextEl.textContent = 'Syncing cloud...';
+    const response = (await chrome.runtime.sendMessage({ type: 'syncCloudToLocal' }));
+    if (response?.ok) {
+        allRecords = response.history || [];
+        render();
+        syncStatusTextEl.textContent = 'Cloud synced';
+    }
+    else {
+        syncStatusTextEl.textContent = response?.error || 'Cloud sync failed';
+    }
+    syncCloudBtn.disabled = !isSignedIn;
 }
 async function deleteCloudData() {
     const shouldDelete = confirm('Delete all MovieTrack cloud data for this account and clear local history?');
@@ -287,6 +308,9 @@ signInBtn.addEventListener('click', () => {
 });
 signOutBtn.addEventListener('click', () => {
     void signOut();
+});
+syncCloudBtn.addEventListener('click', () => {
+    void syncCloudToLocal();
 });
 deleteCloudBtn.addEventListener('click', () => {
     void deleteCloudData();

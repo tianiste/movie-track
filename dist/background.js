@@ -1012,6 +1012,19 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             sendResponse(result);
             return;
         }
+        if (payload?.type === 'syncCloudToLocal') {
+            try {
+                const history = await refreshHistoryFromCloud();
+                sendResponse({ ok: true, history });
+            }
+            catch (error) {
+                sendResponse({
+                    ok: false,
+                    error: error instanceof Error ? error.message : 'Cloud sync failed'
+                });
+            }
+            return;
+        }
         if (payload?.type === 'signOut') {
             const result = await signOutOfSupabase();
             sendResponse({ ...result, signedIn: false });

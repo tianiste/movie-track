@@ -159,7 +159,8 @@ for (const phrase of [
   'readable video element',
   'URLs are trimmed',
   'id="acceptConsentBtn"',
-  'id="privacyLinkBtn"'
+  'id="privacyLinkBtn"',
+  'id="syncCloudBtn"'
 ]) {
   if (!popupHtml.includes(phrase)) {
     fail(`popup consent disclosure missing invariant: ${phrase}`);
@@ -174,6 +175,10 @@ for (const phrase of [
   if (!popup.includes(phrase)) {
     fail(`popup permission flow missing invariant: ${phrase}`);
   }
+}
+
+if (!popup.includes("chrome.runtime.sendMessage({ type: 'syncCloudToLocal' })")) {
+  fail('popup cloud-to-local sync button is not wired');
 }
 
 for (const phrase of [
@@ -193,6 +198,10 @@ for (const phrase of [
   if (!background.includes(phrase)) {
     fail(`tracking privacy guard missing invariant: ${phrase}`);
   }
+}
+
+if (!background.includes("payload?.type === 'syncCloudToLocal'") || !background.includes('const history = await refreshHistoryFromCloud()')) {
+  fail('background cloud-to-local sync handler is missing');
 }
 
 const privacyPolicy = readText('PRIVACY_POLICY.md');
