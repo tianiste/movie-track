@@ -180,6 +180,7 @@ for (const phrase of [
   'chrome.permissions.contains({ origins: [REQUIRED_HOST_PERMISSION] })',
   'enabled && consentAccepted && hostAccessGranted',
   'tab.audible === true',
+  'target: { tabId, allFrames: true }',
   "document.querySelectorAll('video')",
   'function getStoredWatchUrl',
   "url.hash = '';",

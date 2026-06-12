@@ -14,7 +14,7 @@ async function restorePlaybackInTab(tabId, resumeAtSec) {
     }
     try {
         await chrome.scripting.executeScript({
-            target: { tabId },
+            target: { tabId, allFrames: true },
             world: 'MAIN',
             args: [Math.round(resumeAtSec)],
             func: (targetSecond) => {
@@ -628,8 +628,8 @@ function buildRecord(session) {
 }
 async function getVideoPlaybackInfo(tabId) {
     try {
-        const [injection] = await chrome.scripting.executeScript({
-            target: { tabId },
+        const injections = await chrome.scripting.executeScript({
+            target: { tabId, allFrames: true },
             world: 'MAIN',
             func: () => {
                 const videos = Array.from(document.querySelectorAll('video'));
@@ -652,7 +652,15 @@ async function getVideoPlaybackInfo(tabId) {
                 return { currentTimeSec, durationSec };
             }
         });
-        return injection?.result ?? null;
+        const results = injections
+            .map((injection) => injection.result)
+            .filter((result) => Boolean(result));
+        return results
+            .sort((a, b) => {
+            const durationScoreA = a.durationSec ?? 0;
+            const durationScoreB = b.durationSec ?? 0;
+            return durationScoreB - durationScoreA;
+        })[0] ?? null;
     }
     catch {
         return null;
