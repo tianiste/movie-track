@@ -1,5 +1,5 @@
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from './config.js';
-import type { AuthSession, AuthUser, MediaType, OAuthProvider, WatchRecord } from './types.js';
+import type { AuthSession, AuthUser, MediaType, WatchRecord } from './types.js';
 
 const HISTORY_KEY = 'watchHistory';
 const ENABLED_KEY = 'trackingEnabled';
@@ -233,14 +233,14 @@ async function fetchSupabaseUser(accessToken: string): Promise<AuthUser | undefi
   };
 }
 
-async function signInWithSupabaseProvider(provider: OAuthProvider): Promise<AuthSession> {
+async function signInWithGoogle(): Promise<AuthSession> {
   if (!isSupabaseAuthConfigured()) {
     throw new Error('Supabase auth is not configured in background.ts');
   }
 
   const extensionRedirectUrl = chrome.identity.getRedirectURL('supabase-auth');
   const authUrl = new URL(`${SUPABASE_URL}/auth/v1/authorize`);
-  authUrl.searchParams.set('provider', provider);
+  authUrl.searchParams.set('provider', 'google');
   authUrl.searchParams.set('redirect_to', extensionRedirectUrl);
 
   const callbackUrl = await chrome.identity.launchWebAuthFlow({
@@ -1095,7 +1095,6 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
     const payload = message as {
       type?: string;
       enabled?: boolean;
-      provider?: OAuthProvider;
       scope?: 'local' | 'cloudAndLocal';
     };
 
@@ -1130,14 +1129,8 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
     }
 
     if (payload?.type === 'signIn') {
-      const provider = payload.provider ?? 'google';
-      if (provider !== 'google' && provider !== 'github') {
-        sendResponse({ ok: false, error: 'Unsupported provider' });
-        return;
-      }
-
       try {
-        const session = await signInWithSupabaseProvider(provider);
+        const session = await signInWithGoogle();
         await syncPendingRecords();
         sendResponse({ ok: true, signedIn: true, user: session.user ?? null });
       } catch (error) {
@@ -1158,16 +1151,6 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
     if (payload?.type === 'signOut') {
       await clearSupabaseSession();
       sendResponse({ ok: true, signedIn: false });
-      return;
-    }
-
-    if (payload?.type === 'getAccessToken') {
-      const session = await getValidSupabaseSession();
-      if (!session) {
-        sendResponse({ ok: false, error: 'Not authenticated' });
-        return;
-      }
-      sendResponse({ ok: true, accessToken: session.accessToken });
       return;
     }
 

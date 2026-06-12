@@ -1,5 +1,4 @@
 export type MediaType = 'anime' | 'movie' | 'unknown';
-export type OAuthProvider = 'google' | 'github';
 export type SyncStatus = 'pending' | 'syncing' | 'synced' | 'failed';
 
 export interface AuthUser {

@@ -148,13 +148,13 @@ async function fetchSupabaseUser(accessToken) {
         email: data.email
     };
 }
-async function signInWithSupabaseProvider(provider) {
+async function signInWithGoogle() {
     if (!isSupabaseAuthConfigured()) {
         throw new Error('Supabase auth is not configured in background.ts');
     }
     const extensionRedirectUrl = chrome.identity.getRedirectURL('supabase-auth');
     const authUrl = new URL(`${SUPABASE_URL}/auth/v1/authorize`);
-    authUrl.searchParams.set('provider', provider);
+    authUrl.searchParams.set('provider', 'google');
     authUrl.searchParams.set('redirect_to', extensionRedirectUrl);
     const callbackUrl = await chrome.identity.launchWebAuthFlow({
         url: authUrl.toString(),
@@ -899,13 +899,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             return;
         }
         if (payload?.type === 'signIn') {
-            const provider = payload.provider ?? 'google';
-            if (provider !== 'google' && provider !== 'github') {
-                sendResponse({ ok: false, error: 'Unsupported provider' });
-                return;
-            }
             try {
-                const session = await signInWithSupabaseProvider(provider);
+                const session = await signInWithGoogle();
                 await syncPendingRecords();
                 sendResponse({ ok: true, signedIn: true, user: session.user ?? null });
             }
@@ -925,15 +920,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         if (payload?.type === 'signOut') {
             await clearSupabaseSession();
             sendResponse({ ok: true, signedIn: false });
-            return;
-        }
-        if (payload?.type === 'getAccessToken') {
-            const session = await getValidSupabaseSession();
-            if (!session) {
-                sendResponse({ ok: false, error: 'Not authenticated' });
-                return;
-            }
-            sendResponse({ ok: true, accessToken: session.accessToken });
             return;
         }
         if (payload?.type === 'getHistory') {

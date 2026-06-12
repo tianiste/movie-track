@@ -227,10 +227,7 @@ async function loadAuthStatus() {
 }
 async function signIn() {
     signInBtn.disabled = true;
-    const response = (await chrome.runtime.sendMessage({
-        type: 'signIn',
-        provider: 'google'
-    }));
+    const response = (await chrome.runtime.sendMessage({ type: 'signIn' }));
     if (!response?.ok) {
         authStatusTextEl.textContent = response?.error || 'Sign-in failed';
         signInBtn.disabled = false;
