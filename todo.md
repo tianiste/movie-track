@@ -28,11 +28,11 @@ Use `RELEASE_TEST_PLAN.md` to record final manual proof before submitting to Chr
 
 - [ ] Verify two real users cannot see each other's data.
   - Record evidence in `RELEASE_TEST_PLAN.md`.
-  - Google account A: sign in, accept consent, watch video for 10+ seconds.
+  - Google account A: sign in, accept consent, watch video for 5+ seconds.
   - Confirm account A sees/syncs its own row.
   - Google account B in another Chrome profile/device: sign in.
   - Confirm account B cannot see account A records.
-  - Account B watches video for 10+ seconds.
+  - Account B watches video for 5+ seconds.
   - Confirm Supabase `watch_records` has separate `user_id` values.
 
 - [ ] Test logout.

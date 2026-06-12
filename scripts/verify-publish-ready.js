@@ -38,12 +38,14 @@ const sourceGlobs = [
   'src/popup.ts',
   'src/types.ts',
   'supabase/migrations/20260611224728_create_watch_records.sql',
-  'supabase/migrations/20260611224833_harden_watch_records_functions.sql'
+  'supabase/migrations/20260611224833_harden_watch_records_functions.sql',
+  'supabase/migrations/20260612154927_add_youtube_media_type.sql'
 ];
 
 const migrationFiles = [
   'supabase/migrations/20260611224728_create_watch_records.sql',
-  'supabase/migrations/20260611224833_harden_watch_records_functions.sql'
+  'supabase/migrations/20260611224833_harden_watch_records_functions.sql',
+  'supabase/migrations/20260612154927_add_youtube_media_type.sql'
 ];
 
 function fail(message) {
@@ -117,6 +119,10 @@ for (const phrase of [
   if (!migrations.includes(phrase)) {
     fail(`RLS migration missing invariant: ${phrase}`);
   }
+}
+
+if (!migrations.includes("'youtube'")) {
+  fail('RLS migrations must allow youtube media_type');
 }
 
 if (/grant\s+.+\s+on\s+table\s+public\.watch_records\s+to\s+anon/i.test(migrations)) {

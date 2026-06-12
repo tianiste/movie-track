@@ -5,7 +5,7 @@ const HEARTBEAT_ALARM = 'heartbeat';
 const AUTH_SESSION_KEY = 'supabaseAuthSession';
 const PRIVACY_CONSENT_KEY = 'privacyConsentAccepted';
 const REQUIRED_HOST_PERMISSION = '<all_urls>';
-const MIN_DURATION_SEC = 10;
+const MIN_DURATION_SEC = 5;
 const MERGE_GAP_MS = 5 * 60 * 1000;
 const HEARTBEAT_MINUTES = 0.08;
 async function restorePlaybackInTab(tabId, resumeAtSec) {
@@ -582,8 +582,12 @@ function inferMedia(tab) {
     ];
     const animeScore = scorePatterns(hostname, animeSiteIndicators) + scorePatterns(combined, animeTextIndicators);
     const movieScore = scorePatterns(hostname, movieSiteIndicators) + scorePatterns(combined, movieTextIndicators);
+    const isYouTube = hostname === 'youtube.com' || hostname === 'm.youtube.com' || hostname === 'music.youtube.com' || hostname === 'youtu.be';
     let mediaType = 'unknown';
-    if (animeScore >= movieScore && animeScore > 0) {
+    if (isYouTube) {
+        mediaType = 'youtube';
+    }
+    else if (animeScore >= movieScore && animeScore > 0) {
         mediaType = 'anime';
     }
     else if (movieScore > animeScore && movieScore > 0) {
@@ -596,7 +600,7 @@ function inferMedia(tab) {
         cleanedTitle,
         season,
         episode,
-        confidence: animeScore + movieScore
+        confidence: (isYouTube ? 4 : 0) + animeScore + movieScore
     };
 }
 function buildRecord(session) {

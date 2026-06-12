@@ -35,7 +35,7 @@ Reason:
 
 If future publishing review requires removing the warning, disable GraphQL exposure at the Supabase project/API level or move the public REST API shape to a dedicated exposed schema while keeping GraphQL unavailable.
 
-Latest advisor run: June 12, 2026. Warnings only:
+Latest advisor run after the `youtube` media type migration: June 12, 2026. Warnings only:
 
 - `pg_graphql_authenticated_table_exposed`
 - `auth_leaked_password_protection`

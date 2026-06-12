@@ -149,7 +149,7 @@ create table public.watch_records (
   hostname text not null,
   raw_title text not null,
   title text not null,
-  media_type text not null check (media_type in ('anime', 'movie', 'unknown')),
+  media_type text not null check (media_type in ('anime', 'movie', 'youtube', 'unknown')),
   season integer,
   episode integer,
   confidence integer not null default 0,

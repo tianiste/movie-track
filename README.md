@@ -1,11 +1,11 @@
 # MovieTrack Chrome Extension
 
-Tracks what you watch using tab metadata (page title + URL) for anime/movie pages across different sites.
+Tracks what you watch using tab metadata (page title + URL) for anime, movie, and YouTube pages across different sites.
 
 ## What it does
 
 - Runs in the background and watches the active tab.
-- Detects likely anime/movie sessions based on URL + title patterns.
+- Detects likely anime, movie, and YouTube sessions based on URL + title patterns.
 - Requires first-run privacy consent before tracking starts.
 - Stores minimized watch records locally (`chrome.storage.local`) first.
 - Syncs records to Supabase when signed in.
@@ -37,7 +37,7 @@ TypeScript sources live in `src/background.ts` and `src/popup.ts`.
 ## Notes
 
 - This tracks tab metadata plus generic `<video>` playback time when script injection is allowed.
-- It logs a record after at least 10 seconds of watch time.
+- It logs a record after at least 5 seconds of watch time.
 - Data stays local while signed out, then syncs to the user's Supabase account after Google login.
 - URLs are trimmed before saving. YouTube records keep only the video ID.
 - Full page content, cookies, passwords, screenshots, form data, and payment data are not collected.

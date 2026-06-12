@@ -1,4 +1,4 @@
-export type MediaType = 'anime' | 'movie' | 'unknown';
+export type MediaType = 'anime' | 'movie' | 'youtube' | 'unknown';
 export type SyncStatus = 'pending' | 'syncing' | 'synced' | 'failed';
 
 export interface AuthUser {

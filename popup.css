@@ -525,6 +525,12 @@ h1, h2, h3, h4 {
   border: 1px solid rgba(216, 150, 254, 0.2);
 }
 
+.badge.youtube {
+  background: rgba(255, 0, 0, 0.1);
+  color: #ff6b6b;
+  border: 1px solid rgba(255, 0, 0, 0.24);
+}
+
 .badge.unknown {
   background: rgba(173, 170, 173, 0.1);
   color: var(--on-surface-variant);
@@ -638,6 +644,11 @@ h1, h2, h3, h4 {
 .record-card.movie .progress-bar {
   background: var(--secondary);
   box-shadow: 0 0 8px rgba(216, 150, 254, 0.5);
+}
+
+.record-card.youtube .progress-bar {
+  background: #ff6b6b;
+  box-shadow: 0 0 8px rgba(255, 0, 0, 0.35);
 }
 
 /* Empty State */

@@ -7,7 +7,7 @@ interface WatchRecord {
   hostname: string;
   rawTitle: string;
   title: string;
-  mediaType: 'anime' | 'movie' | 'unknown';
+  mediaType: 'anime' | 'movie' | 'youtube' | 'unknown';
   season: number | null;
   episode: number | null;
   confidence: number;

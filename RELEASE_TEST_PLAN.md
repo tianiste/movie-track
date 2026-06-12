@@ -44,7 +44,7 @@ Use this before Chrome Web Store submission. Do not publish until every evidence
 ## Watch Sync Evidence
 
 - Test site/video:
-- Watched for at least 10 seconds in active audible tab:
+- Watched for at least 5 seconds in active audible tab:
 - Popup showed new record:
 - Supabase `watch_records` row appeared:
 - Stored URL had no query/hash except YouTube `v` ID:
