@@ -2,7 +2,7 @@
 
 All notable changes to MovieTrack are documented here.
 
-## 0.1.0 - Unreleased
+## 0.1.1 - 2026-06-13
 
 ### Added
 
