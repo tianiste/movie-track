@@ -35,6 +35,18 @@ Reason:
 
 If future publishing review requires removing the warning, disable GraphQL exposure at the Supabase project/API level or move the public REST API shape to a dedicated exposed schema while keeping GraphQL unavailable.
 
+Latest advisor run: June 12, 2026. Warnings only:
+
+- `pg_graphql_authenticated_table_exposed`
+- `auth_leaked_password_protection`
+
+## Auth Session Handling
+
+- Sign-in uses Supabase Google OAuth through `chrome.identity.launchWebAuthFlow`.
+- Supabase access and refresh tokens are stored in `chrome.storage.local`.
+- Token refresh runs before sync/auth checks when the token is near expiry.
+- Sign-out calls Supabase `/auth/v1/logout` to revoke the server-side session when possible, then clears local session storage even if the network logout fails.
+
 ## Publish Checklist
 
 - Privacy policy URL added in Chrome Web Store Developer Dashboard.

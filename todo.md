@@ -35,6 +35,7 @@ Do not mark publish-ready until every required item below is done.
 - [ ] Test logout.
   - Sign in.
   - Confirm cloud sync works.
+  - Code now calls Supabase `/auth/v1/logout` before clearing local session.
   - Click sign out.
   - Confirm popup is signed out.
   - Confirm local-only tracking still works after sign-out.
@@ -63,10 +64,14 @@ Do not mark publish-ready until every required item below is done.
 
 ## Security / Supabase
 
-- [ ] Re-run Supabase advisor before final submit.
+- [x] Re-run Supabase advisor before final submit.
   ```sh
   supabase db advisors --linked --level warn --fail-on error
   ```
+  - Last run: June 12, 2026.
+  - Current warnings only:
+    - `pg_graphql_authenticated_table_exposed`
+    - `auth_leaked_password_protection`
 
 - [ ] Decide final GraphQL warning handling.
   - Current warning:

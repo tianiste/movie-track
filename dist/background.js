@@ -229,8 +229,40 @@ async function getValidSupabaseSession() {
     }
     return maybeRefreshed;
 }
+async function revokeSupabaseSession(session) {
+    if (!isSupabaseAuthConfigured()) {
+        return;
+    }
+    const response = await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+        method: 'POST',
+        headers: getSupabaseHeaders(session, {
+            'Content-Type': 'application/json'
+        })
+    });
+    if (!response.ok && response.status !== 401) {
+        throw new Error(`Supabase logout failed: ${response.status}`);
+    }
+}
 async function clearSupabaseSession() {
     await setStorage(AUTH_SESSION_KEY, null);
+}
+async function signOutOfSupabase() {
+    const session = await getValidSupabaseSession();
+    try {
+        if (session) {
+            await revokeSupabaseSession(session);
+        }
+        return { ok: true };
+    }
+    catch (error) {
+        return {
+            ok: false,
+            warning: error instanceof Error ? error.message : 'Supabase logout failed'
+        };
+    }
+    finally {
+        await clearSupabaseSession();
+    }
 }
 function getSupabaseHeaders(session, extra) {
     return {
@@ -918,8 +950,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             return;
         }
         if (payload?.type === 'signOut') {
-            await clearSupabaseSession();
-            sendResponse({ ok: true, signedIn: false });
+            const result = await signOutOfSupabase();
+            sendResponse({ ...result, signedIn: false });
             return;
         }
         if (payload?.type === 'getHistory') {

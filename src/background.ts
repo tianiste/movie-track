@@ -340,8 +340,43 @@ async function getValidSupabaseSession(): Promise<AuthSession | null> {
   return maybeRefreshed;
 }
 
+async function revokeSupabaseSession(session: AuthSession): Promise<void> {
+  if (!isSupabaseAuthConfigured()) {
+    return;
+  }
+
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+    method: 'POST',
+    headers: getSupabaseHeaders(session, {
+      'Content-Type': 'application/json'
+    })
+  });
+
+  if (!response.ok && response.status !== 401) {
+    throw new Error(`Supabase logout failed: ${response.status}`);
+  }
+}
+
 async function clearSupabaseSession(): Promise<void> {
   await setStorage(AUTH_SESSION_KEY, null);
+}
+
+async function signOutOfSupabase(): Promise<{ ok: boolean; warning?: string }> {
+  const session = await getValidSupabaseSession();
+
+  try {
+    if (session) {
+      await revokeSupabaseSession(session);
+    }
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      warning: error instanceof Error ? error.message : 'Supabase logout failed'
+    };
+  } finally {
+    await clearSupabaseSession();
+  }
 }
 
 function getSupabaseHeaders(session: AuthSession, extra?: Record<string, string>): Record<string, string> {
@@ -1150,8 +1185,8 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
     }
 
     if (payload?.type === 'signOut') {
-      await clearSupabaseSession();
-      sendResponse({ ok: true, signedIn: false });
+      const result = await signOutOfSupabase();
+      sendResponse({ ...result, signedIn: false });
       return;
     }
 
