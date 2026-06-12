@@ -8,6 +8,11 @@ Do not mark publish-ready until every required item below is done.
 
 - [ ] Host privacy policy at a public URL.
   - Source content: `PRIVACY_POLICY.md`.
+  - Public-hostable HTML page exists at `docs/privacy.html`.
+  - If GitHub Pages is enabled from `main` `/docs`, expected URL is:
+    ```txt
+    https://tianiste.github.io/movie-track/privacy.html
+    ```
   - Public URL must not be a local file or private repo URL.
   - Add this URL in Chrome Web Store Developer Dashboard.
 

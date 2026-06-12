@@ -8,6 +8,18 @@ Host `PRIVACY_POLICY.md` as a public web page. Use that public URL in the Develo
 
 Do not use a local file URL or GitHub private repo URL.
 
+Prepared public-hostable page:
+
+```txt
+docs/privacy.html
+```
+
+If GitHub Pages is enabled for this repo from the `main` branch `/docs` folder, use:
+
+```txt
+https://tianiste.github.io/movie-track/privacy.html
+```
+
 ## Single Purpose
 
 MovieTrack tracks video watch progress in the active browser tab when the tab is audible and contains a readable video element, then syncs that progress to the user's account after Google sign-in.
