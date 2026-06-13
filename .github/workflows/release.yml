@@ -52,5 +52,5 @@ jobs:
             gh release create "$RELEASE_TAG" movietrack.zip movietrack.zip.sha256 \
               --target "$GITHUB_SHA" \
               --title "MovieTrack $RELEASE_TAG" \
-              --notes "Packaged MovieTrack extension release. Download movietrack.zip, unzip it, and load the folder as an unpacked extension."
+              --generate-notes
           fi

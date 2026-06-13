@@ -218,25 +218,18 @@ async function loadHistory() {
 async function saveCustomGroups() {
     await chrome.storage.local.set({ [CUSTOM_GROUPS_KEY]: customGroups });
 }
-function setDragTargetEvents(element, targetGroupTitle, forceUngroup = false) {
-    element.addEventListener('dragover', (event) => {
-        if (!draggedRecordId) {
-            return;
-        }
-        event.preventDefault();
-        element.classList.add('drag-over');
-    });
-    element.addEventListener('dragleave', () => {
-        element.classList.remove('drag-over');
-    });
-    element.addEventListener('drop', (event) => {
-        if (!draggedRecordId) {
-            return;
-        }
-        event.preventDefault();
-        element.classList.remove('drag-over');
-        void moveRecordToGroup(draggedRecordId, targetGroupTitle, forceUngroup);
-    });
+function clearDragTargets() {
+    document.querySelectorAll('.drag-over').forEach((element) => element.classList.remove('drag-over'));
+}
+function getDraggedRecordId(event) {
+    return draggedRecordId || event.dataTransfer?.getData('text/plain') || null;
+}
+function getDropTarget(event) {
+    const target = event.target instanceof Element ? event.target.closest('.drop-target') : null;
+    if (!target || !groupsEl.contains(target)) {
+        return null;
+    }
+    return target;
 }
 async function moveRecordToGroup(recordId, groupTitle, forceUngroup = false) {
     const record = allRecords.find((item) => item.id === recordId);
@@ -293,15 +286,15 @@ function renderRecord(record) {
     node.addEventListener('dragstart', (event) => {
         draggedRecordId = record.id;
         node.classList.add('dragging');
-        event.dataTransfer?.setData('text/plain', record.id);
         if (event.dataTransfer) {
+            event.dataTransfer.setData('text/plain', record.id);
             event.dataTransfer.effectAllowed = 'move';
         }
     });
     node.addEventListener('dragend', () => {
         draggedRecordId = null;
         node.classList.remove('dragging');
-        document.querySelectorAll('.drag-over').forEach((element) => element.classList.remove('drag-over'));
+        clearDragTargets();
     });
     title.textContent = displayTitle(record);
     site.textContent = record.hostname || record.url;
@@ -331,8 +324,8 @@ function formatGroupMeta(group) {
 }
 function renderSingleSection(records) {
     const section = document.createElement('section');
-    section.className = 'single-section';
-    setDragTargetEvents(section, null, true);
+    section.className = 'single-section drop-target';
+    section.dataset.ungroup = 'true';
     const heading = document.createElement('h2');
     heading.className = 'section-heading';
     heading.textContent = 'Ungrouped';
@@ -344,9 +337,9 @@ function renderSingleSection(records) {
 }
 function renderUngroupDropZone() {
     const dropZone = document.createElement('section');
-    dropZone.className = 'ungroup-drop-zone';
+    dropZone.className = 'ungroup-drop-zone drop-target';
+    dropZone.dataset.ungroup = 'true';
     dropZone.textContent = 'Drop here to remove from groups';
-    setDragTargetEvents(dropZone, null, true);
     return dropZone;
 }
 function renderGroup(group) {
@@ -359,7 +352,8 @@ function renderGroup(group) {
     const deleteBtn = node.querySelector('.delete-group-btn');
     const seasonList = node.querySelector('.season-list');
     const isExpanded = expandedGroupKeys.has(group.key);
-    setDragTargetEvents(node, group.title);
+    node.classList.add('drop-target');
+    node.dataset.groupTitle = group.title;
     badge.textContent = group.mediaType.toUpperCase();
     badge.classList.add(group.mediaType);
     title.textContent = group.title;
@@ -579,6 +573,34 @@ resetManualBtn.addEventListener('click', () => {
 groupForm.addEventListener('submit', (event) => {
     event.preventDefault();
     void createCustomGroup();
+});
+document.addEventListener('dragover', (event) => {
+    if (!getDraggedRecordId(event)) {
+        return;
+    }
+    const target = getDropTarget(event);
+    if (!target) {
+        return;
+    }
+    event.preventDefault();
+    if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'move';
+    }
+    clearDragTargets();
+    target.classList.add('drag-over');
+});
+document.addEventListener('drop', (event) => {
+    const recordId = getDraggedRecordId(event);
+    const target = getDropTarget(event);
+    if (!recordId || !target) {
+        return;
+    }
+    event.preventDefault();
+    clearDragTargets();
+    draggedRecordId = null;
+    const forceUngroup = target.dataset.ungroup === 'true';
+    const groupTitle = forceUngroup ? null : target.dataset.groupTitle || null;
+    void moveRecordToGroup(recordId, groupTitle, forceUngroup);
 });
 void loadHistory();
 export {};
