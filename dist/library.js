@@ -54,6 +54,9 @@ function displayGroupTitle(record) {
 function normalizeText(value) {
     return value.trim().toLowerCase();
 }
+function getGroupKey(mediaType, title) {
+    return `${mediaType}:${normalizeText(title)}`;
+}
 function inferGroupTitle(record) {
     const title = displayTitle(record)
         .replace(/\bS\d{1,2}\s*E\d{1,4}\b/gi, '')
@@ -142,10 +145,11 @@ function groupRecords(records) {
             singles.push(record);
             continue;
         }
-        const key = `${groupInfo.custom ? 'custom' : mediaType}:${normalizeText(groupInfo.title)}`;
+        const key = getGroupKey(mediaType, groupInfo.title);
         const existing = byKey.get(key);
         if (existing) {
             existing.records.push(record);
+            existing.custom = existing.custom || groupInfo.custom;
             existing.latestAt = Math.max(existing.latestAt, record.startedAt);
         }
         else {
@@ -160,7 +164,7 @@ function groupRecords(records) {
         }
     }
     for (const customGroup of customGroups) {
-        const key = `custom:${normalizeText(customGroup.title)}`;
+        const key = getGroupKey(customGroup.mediaType, customGroup.title);
         if (byKey.has(key)) {
             continue;
         }
@@ -267,24 +271,30 @@ function getDropTarget(event) {
     }
     return target;
 }
-async function moveRecordToGroup(recordId, groupTitle, forceUngroup = false) {
+async function moveRecordToGroup(recordId, groupTitle, groupMediaType, forceUngroup = false) {
     const record = allRecords.find((item) => item.id === recordId);
     if (!record) {
         return;
     }
     const manualGroupTitle = forceUngroup ? UNGROUPED_GROUP_TITLE : groupTitle;
+    const patch = forceUngroup
+        ? { manualGroupTitle }
+        : {
+            manualGroupTitle,
+            manualMediaType: groupMediaType ?? displayMediaType(record)
+        };
     const response = (await chrome.runtime.sendMessage({
         type: 'updateRecord',
         id: record.id,
-        patch: { manualGroupTitle }
+        patch
     }));
     if (!response?.ok) {
         statusTextEl.textContent = response?.error || 'Move failed';
         return;
     }
     allRecords = response.history || allRecords;
-    if (groupTitle) {
-        expandedGroupKeys.add(`custom:${normalizeText(groupTitle)}`);
+    if (groupTitle && groupMediaType) {
+        expandedGroupKeys.add(getGroupKey(groupMediaType, groupTitle));
     }
     render();
 }
@@ -305,7 +315,7 @@ async function createCustomGroup() {
         ];
         await saveCustomGroups();
     }
-    expandedGroupKeys.add(`custom:${normalizeText(title)}`);
+    expandedGroupKeys.add(getGroupKey(newGroupTypeInput.value, title));
     groupDialog.close();
     groupForm.reset();
     render();
@@ -391,6 +401,7 @@ function renderGroup(group) {
     const isExpanded = expandedGroupKeys.has(group.key);
     node.classList.add('drop-target');
     node.dataset.groupTitle = group.title;
+    node.dataset.groupMediaType = group.mediaType;
     badge.textContent = group.mediaType.toUpperCase();
     badge.classList.add(group.mediaType);
     title.textContent = group.title;
@@ -650,7 +661,8 @@ document.addEventListener('drop', (event) => {
     stopDragAutoScroll();
     const forceUngroup = target.dataset.ungroup === 'true';
     const groupTitle = forceUngroup ? null : target.dataset.groupTitle || null;
-    void moveRecordToGroup(recordId, groupTitle, forceUngroup);
+    const groupMediaType = forceUngroup ? null : target.dataset.groupMediaType || null;
+    void moveRecordToGroup(recordId, groupTitle, groupMediaType, forceUngroup);
 });
 document.addEventListener('dragend', stopDragAutoScroll);
 void loadHistory();
