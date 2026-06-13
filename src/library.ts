@@ -1,5 +1,7 @@
 type MediaType = 'anime' | 'movie' | 'youtube' | 'unknown';
 type SyncStatus = 'pending' | 'syncing' | 'synced' | 'failed';
+const CUSTOM_GROUPS_KEY = 'libraryCustomGroups';
+const UNGROUPED_GROUP_TITLE = '__movietrack_ungrouped__';
 
 interface WatchRecord {
   id: string;
@@ -33,6 +35,12 @@ interface WatchGroup {
   records: WatchRecord[];
 }
 
+interface CustomGroupDefinition {
+  title: string;
+  mediaType: MediaType;
+  createdAt: number;
+}
+
 type EditorMode = { type: 'record'; record: WatchRecord } | { type: 'group'; group: WatchGroup } | null;
 type RecordPatch = Partial<Pick<WatchRecord, 'manualTitle' | 'manualMediaType' | 'manualSeason' | 'manualEpisode' | 'manualGroupTitle'>>;
 
@@ -42,23 +50,31 @@ const groupTemplate = document.getElementById('groupTemplate') as HTMLTemplateEl
 const recordTemplate = document.getElementById('recordTemplate') as HTMLTemplateElement;
 const searchInput = document.getElementById('searchInput') as HTMLInputElement;
 const typeFilter = document.getElementById('typeFilter') as HTMLSelectElement;
+const newGroupBtn = document.getElementById('newGroupBtn') as HTMLButtonElement;
 const settingsBtn = document.getElementById('settingsBtn') as HTMLButtonElement;
 const editDialog = document.getElementById('editDialog') as HTMLDialogElement;
 const editForm = document.getElementById('editForm') as HTMLFormElement;
+const groupDialog = document.getElementById('groupDialog') as HTMLDialogElement;
+const groupForm = document.getElementById('groupForm') as HTMLFormElement;
 const dialogTitle = document.getElementById('dialogTitle') as HTMLElement;
 const dialogHint = document.getElementById('dialogHint') as HTMLElement;
 const cancelEditBtn = document.getElementById('cancelEditBtn') as HTMLButtonElement;
+const cancelGroupBtn = document.getElementById('cancelGroupBtn') as HTMLButtonElement;
 const resetManualBtn = document.getElementById('resetManualBtn') as HTMLButtonElement;
 const titleInput = document.getElementById('titleInput') as HTMLInputElement;
 const mediaTypeInput = document.getElementById('mediaTypeInput') as HTMLSelectElement;
 const groupInput = document.getElementById('groupInput') as HTMLInputElement;
 const groupNameOptions = document.getElementById('groupNameOptions') as HTMLDataListElement;
+const newGroupNameInput = document.getElementById('newGroupNameInput') as HTMLInputElement;
+const newGroupTypeInput = document.getElementById('newGroupTypeInput') as HTMLSelectElement;
 const seasonInput = document.getElementById('seasonInput') as HTMLInputElement;
 const episodeInput = document.getElementById('episodeInput') as HTMLInputElement;
 
 let allRecords: WatchRecord[] = [];
+let customGroups: CustomGroupDefinition[] = [];
 let editorMode: EditorMode = null;
 const expandedGroupKeys = new Set<string>();
+let draggedRecordId: string | null = null;
 
 function displayTitle(record: WatchRecord): string {
   return record.manualTitle || record.title || record.rawTitle || record.url;
@@ -78,7 +94,10 @@ function displayEpisode(record: WatchRecord): number | null {
 
 function displayGroupTitle(record: WatchRecord): string | null {
   const title = record.manualGroupTitle?.trim();
-  return title || null;
+  if (!title || title === UNGROUPED_GROUP_TITLE) {
+    return null;
+  }
+  return title;
 }
 
 function normalizeText(value: string): string {
@@ -157,6 +176,10 @@ function getFilteredRecords(): WatchRecord[] {
 }
 
 function getGroupTitle(record: WatchRecord): { title: string; custom: boolean } | null {
+  if (record.manualGroupTitle === UNGROUPED_GROUP_TITLE) {
+    return null;
+  }
+
   const customTitle = displayGroupTitle(record);
   if (customTitle) {
     return { title: customTitle, custom: true };
@@ -199,6 +222,29 @@ function groupRecords(records: WatchRecord[]): { groups: WatchGroup[]; singles: 
     }
   }
 
+  for (const customGroup of customGroups) {
+    const key = `custom:${normalizeText(customGroup.title)}`;
+    if (byKey.has(key)) {
+      continue;
+    }
+    if (typeFilter.value !== 'all' && customGroup.mediaType !== typeFilter.value) {
+      continue;
+    }
+    const query = normalizeText(searchInput.value);
+    if (query && !normalizeText(customGroup.title).includes(query)) {
+      continue;
+    }
+
+    byKey.set(key, {
+      key,
+      title: customGroup.title,
+      mediaType: customGroup.mediaType,
+      custom: true,
+      latestAt: customGroup.createdAt,
+      records: []
+    });
+  }
+
   return {
     groups: [...byKey.values()].sort((a, b) => b.latestAt - a.latestAt),
     singles
@@ -228,11 +274,17 @@ function groupedBySeason(records: WatchRecord[]): Map<string, WatchRecord[]> {
 }
 
 async function loadHistory(): Promise<void> {
-  const response = (await chrome.runtime.sendMessage({ type: 'getHistory' })) as {
-    ok: boolean;
-    history?: WatchRecord[];
-    error?: string;
-  };
+  const [response, customGroupData] = await Promise.all([
+    chrome.runtime.sendMessage({ type: 'getHistory' }) as Promise<{
+      ok: boolean;
+      history?: WatchRecord[];
+      error?: string;
+    }>,
+    chrome.storage.local.get(CUSTOM_GROUPS_KEY) as Promise<Record<string, CustomGroupDefinition[] | undefined>>
+  ]);
+
+  const customGroupValue = customGroupData[CUSTOM_GROUPS_KEY];
+  customGroups = Array.isArray(customGroupValue) ? customGroupValue : [];
 
   if (!response?.ok) {
     statusTextEl.textContent = response?.error || 'Could not load library.';
@@ -240,6 +292,83 @@ async function loadHistory(): Promise<void> {
   }
 
   allRecords = response.history || [];
+  render();
+}
+
+async function saveCustomGroups(): Promise<void> {
+  await chrome.storage.local.set({ [CUSTOM_GROUPS_KEY]: customGroups });
+}
+
+function setDragTargetEvents(element: HTMLElement, targetGroupTitle: string | null, forceUngroup = false): void {
+  element.addEventListener('dragover', (event) => {
+    if (!draggedRecordId) {
+      return;
+    }
+    event.preventDefault();
+    element.classList.add('drag-over');
+  });
+
+  element.addEventListener('dragleave', () => {
+    element.classList.remove('drag-over');
+  });
+
+  element.addEventListener('drop', (event) => {
+    if (!draggedRecordId) {
+      return;
+    }
+    event.preventDefault();
+    element.classList.remove('drag-over');
+    void moveRecordToGroup(draggedRecordId, targetGroupTitle, forceUngroup);
+  });
+}
+
+async function moveRecordToGroup(recordId: string, groupTitle: string | null, forceUngroup = false): Promise<void> {
+  const record = allRecords.find((item) => item.id === recordId);
+  if (!record) {
+    return;
+  }
+
+  const manualGroupTitle = forceUngroup ? UNGROUPED_GROUP_TITLE : groupTitle;
+  const response = (await chrome.runtime.sendMessage({
+    type: 'updateRecord',
+    id: record.id,
+    patch: { manualGroupTitle }
+  })) as { ok: boolean; history?: WatchRecord[]; error?: string };
+
+  if (!response?.ok) {
+    statusTextEl.textContent = response?.error || 'Move failed';
+    return;
+  }
+
+  allRecords = response.history || allRecords;
+  if (groupTitle) {
+    expandedGroupKeys.add(`custom:${normalizeText(groupTitle)}`);
+  }
+  render();
+}
+
+async function createCustomGroup(): Promise<void> {
+  const title = newGroupNameInput.value.trim();
+  if (!title) {
+    return;
+  }
+
+  const existing = customGroups.find((group) => normalizeText(group.title) === normalizeText(title));
+  if (!existing) {
+    customGroups = [
+      ...customGroups,
+      {
+        title,
+        mediaType: newGroupTypeInput.value as MediaType,
+        createdAt: Date.now()
+      }
+    ];
+    await saveCustomGroups();
+  }
+
+  expandedGroupKeys.add(`custom:${normalizeText(title)}`);
+  groupDialog.close();
+  groupForm.reset();
   render();
 }
 
@@ -251,6 +380,21 @@ function renderRecord(record: WatchRecord): HTMLElement {
   const openBtn = node.querySelector('.open-record-btn') as HTMLButtonElement;
   const editBtn = node.querySelector('.edit-record-btn') as HTMLButtonElement;
   const deleteBtn = node.querySelector('.delete-record-btn') as HTMLButtonElement;
+
+  node.dataset.recordId = record.id;
+  node.addEventListener('dragstart', (event) => {
+    draggedRecordId = record.id;
+    node.classList.add('dragging');
+    event.dataTransfer?.setData('text/plain', record.id);
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+    }
+  });
+  node.addEventListener('dragend', () => {
+    draggedRecordId = null;
+    node.classList.remove('dragging');
+    document.querySelectorAll('.drag-over').forEach((element) => element.classList.remove('drag-over'));
+  });
 
   title.textContent = displayTitle(record);
   site.textContent = record.hostname || record.url;
@@ -286,6 +430,7 @@ function formatGroupMeta(group: WatchGroup): string {
 function renderSingleSection(records: WatchRecord[]): HTMLElement {
   const section = document.createElement('section');
   section.className = 'single-section';
+  setDragTargetEvents(section, null, true);
 
   const heading = document.createElement('h2');
   heading.className = 'section-heading';
@@ -299,6 +444,14 @@ function renderSingleSection(records: WatchRecord[]): HTMLElement {
   return section;
 }
 
+function renderUngroupDropZone(): HTMLElement {
+  const dropZone = document.createElement('section');
+  dropZone.className = 'ungroup-drop-zone';
+  dropZone.textContent = 'Drop here to remove from groups';
+  setDragTargetEvents(dropZone, null, true);
+  return dropZone;
+}
+
 function renderGroup(group: WatchGroup): HTMLElement {
   const node = groupTemplate.content.firstElementChild?.cloneNode(true) as HTMLElement;
   const badge = node.querySelector('.badge') as HTMLElement;
@@ -309,6 +462,7 @@ function renderGroup(group: WatchGroup): HTMLElement {
   const deleteBtn = node.querySelector('.delete-group-btn') as HTMLButtonElement;
   const seasonList = node.querySelector('.season-list') as HTMLElement;
   const isExpanded = expandedGroupKeys.has(group.key);
+  setDragTargetEvents(node, group.title);
 
   badge.textContent = group.mediaType.toUpperCase();
   badge.classList.add(group.mediaType);
@@ -364,6 +518,7 @@ function render(): void {
   statusTextEl.textContent = `${records.length} records · ${groups.length} groups · ${singles.length} ungrouped`;
 
   const fragment = document.createDocumentFragment();
+  fragment.append(renderUngroupDropZone());
   const entries = [
     ...groups.map((group) => ({ type: 'group' as const, latestAt: group.latestAt, group })),
     ...singles.map((record) => ({ type: 'single' as const, latestAt: record.startedAt, record }))
@@ -531,6 +686,11 @@ async function deleteGroup(group: WatchGroup): Promise<void> {
 
 searchInput.addEventListener('input', render);
 typeFilter.addEventListener('change', render);
+newGroupBtn.addEventListener('click', () => {
+  newGroupNameInput.value = '';
+  newGroupTypeInput.value = typeFilter.value === 'all' ? 'anime' : typeFilter.value;
+  groupDialog.showModal();
+});
 settingsBtn.addEventListener('click', () => {
   if (chrome.runtime.openOptionsPage) {
     void chrome.runtime.openOptionsPage();
@@ -542,12 +702,19 @@ cancelEditBtn.addEventListener('click', () => {
   editDialog.close();
   editorMode = null;
 });
+cancelGroupBtn.addEventListener('click', () => {
+  groupDialog.close();
+});
 editForm.addEventListener('submit', (event) => {
   event.preventDefault();
   void saveEditor();
 });
 resetManualBtn.addEventListener('click', () => {
   void saveEditor(true);
+});
+groupForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  void createCustomGroup();
 });
 
 void loadHistory();

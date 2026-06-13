@@ -215,6 +215,9 @@ for (const phrase of [
   'id="recordTemplate"',
   'id="editDialog"',
   'id="groupInput"',
+  'id="groupDialog"',
+  'id="newGroupBtn"',
+  'draggable="true"',
   'Edit group',
   'Delete group'
 ]) {
@@ -229,6 +232,8 @@ for (const phrase of [
   'function groupRecords',
   'function openRecordEditor',
   'function openGroupEditor',
+  'function createCustomGroup',
+  'function moveRecordToGroup',
   'manualGroupTitle'
 ]) {
   if (!library.includes(phrase)) {

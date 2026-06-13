@@ -1,25 +1,35 @@
+const CUSTOM_GROUPS_KEY = 'libraryCustomGroups';
+const UNGROUPED_GROUP_TITLE = '__movietrack_ungrouped__';
 const groupsEl = document.getElementById('groups');
 const statusTextEl = document.getElementById('statusText');
 const groupTemplate = document.getElementById('groupTemplate');
 const recordTemplate = document.getElementById('recordTemplate');
 const searchInput = document.getElementById('searchInput');
 const typeFilter = document.getElementById('typeFilter');
+const newGroupBtn = document.getElementById('newGroupBtn');
 const settingsBtn = document.getElementById('settingsBtn');
 const editDialog = document.getElementById('editDialog');
 const editForm = document.getElementById('editForm');
+const groupDialog = document.getElementById('groupDialog');
+const groupForm = document.getElementById('groupForm');
 const dialogTitle = document.getElementById('dialogTitle');
 const dialogHint = document.getElementById('dialogHint');
 const cancelEditBtn = document.getElementById('cancelEditBtn');
+const cancelGroupBtn = document.getElementById('cancelGroupBtn');
 const resetManualBtn = document.getElementById('resetManualBtn');
 const titleInput = document.getElementById('titleInput');
 const mediaTypeInput = document.getElementById('mediaTypeInput');
 const groupInput = document.getElementById('groupInput');
 const groupNameOptions = document.getElementById('groupNameOptions');
+const newGroupNameInput = document.getElementById('newGroupNameInput');
+const newGroupTypeInput = document.getElementById('newGroupTypeInput');
 const seasonInput = document.getElementById('seasonInput');
 const episodeInput = document.getElementById('episodeInput');
 let allRecords = [];
+let customGroups = [];
 let editorMode = null;
 const expandedGroupKeys = new Set();
+let draggedRecordId = null;
 function displayTitle(record) {
     return record.manualTitle || record.title || record.rawTitle || record.url;
 }
@@ -34,7 +44,10 @@ function displayEpisode(record) {
 }
 function displayGroupTitle(record) {
     const title = record.manualGroupTitle?.trim();
-    return title || null;
+    if (!title || title === UNGROUPED_GROUP_TITLE) {
+        return null;
+    }
+    return title;
 }
 function normalizeText(value) {
     return value.trim().toLowerCase();
@@ -105,6 +118,9 @@ function getFilteredRecords() {
         .sort((a, b) => b.startedAt - a.startedAt);
 }
 function getGroupTitle(record) {
+    if (record.manualGroupTitle === UNGROUPED_GROUP_TITLE) {
+        return null;
+    }
     const customTitle = displayGroupTitle(record);
     if (customTitle) {
         return { title: customTitle, custom: true };
@@ -141,6 +157,27 @@ function groupRecords(records) {
             });
         }
     }
+    for (const customGroup of customGroups) {
+        const key = `custom:${normalizeText(customGroup.title)}`;
+        if (byKey.has(key)) {
+            continue;
+        }
+        if (typeFilter.value !== 'all' && customGroup.mediaType !== typeFilter.value) {
+            continue;
+        }
+        const query = normalizeText(searchInput.value);
+        if (query && !normalizeText(customGroup.title).includes(query)) {
+            continue;
+        }
+        byKey.set(key, {
+            key,
+            title: customGroup.title,
+            mediaType: customGroup.mediaType,
+            custom: true,
+            latestAt: customGroup.createdAt,
+            records: []
+        });
+    }
     return {
         groups: [...byKey.values()].sort((a, b) => b.latestAt - a.latestAt),
         singles
@@ -165,12 +202,83 @@ function groupedBySeason(records) {
     return new Map([...bySeason.entries()].sort(([a], [b]) => a.localeCompare(b)));
 }
 async function loadHistory() {
-    const response = (await chrome.runtime.sendMessage({ type: 'getHistory' }));
+    const [response, customGroupData] = await Promise.all([
+        chrome.runtime.sendMessage({ type: 'getHistory' }),
+        chrome.storage.local.get(CUSTOM_GROUPS_KEY)
+    ]);
+    const customGroupValue = customGroupData[CUSTOM_GROUPS_KEY];
+    customGroups = Array.isArray(customGroupValue) ? customGroupValue : [];
     if (!response?.ok) {
         statusTextEl.textContent = response?.error || 'Could not load library.';
         return;
     }
     allRecords = response.history || [];
+    render();
+}
+async function saveCustomGroups() {
+    await chrome.storage.local.set({ [CUSTOM_GROUPS_KEY]: customGroups });
+}
+function setDragTargetEvents(element, targetGroupTitle, forceUngroup = false) {
+    element.addEventListener('dragover', (event) => {
+        if (!draggedRecordId) {
+            return;
+        }
+        event.preventDefault();
+        element.classList.add('drag-over');
+    });
+    element.addEventListener('dragleave', () => {
+        element.classList.remove('drag-over');
+    });
+    element.addEventListener('drop', (event) => {
+        if (!draggedRecordId) {
+            return;
+        }
+        event.preventDefault();
+        element.classList.remove('drag-over');
+        void moveRecordToGroup(draggedRecordId, targetGroupTitle, forceUngroup);
+    });
+}
+async function moveRecordToGroup(recordId, groupTitle, forceUngroup = false) {
+    const record = allRecords.find((item) => item.id === recordId);
+    if (!record) {
+        return;
+    }
+    const manualGroupTitle = forceUngroup ? UNGROUPED_GROUP_TITLE : groupTitle;
+    const response = (await chrome.runtime.sendMessage({
+        type: 'updateRecord',
+        id: record.id,
+        patch: { manualGroupTitle }
+    }));
+    if (!response?.ok) {
+        statusTextEl.textContent = response?.error || 'Move failed';
+        return;
+    }
+    allRecords = response.history || allRecords;
+    if (groupTitle) {
+        expandedGroupKeys.add(`custom:${normalizeText(groupTitle)}`);
+    }
+    render();
+}
+async function createCustomGroup() {
+    const title = newGroupNameInput.value.trim();
+    if (!title) {
+        return;
+    }
+    const existing = customGroups.find((group) => normalizeText(group.title) === normalizeText(title));
+    if (!existing) {
+        customGroups = [
+            ...customGroups,
+            {
+                title,
+                mediaType: newGroupTypeInput.value,
+                createdAt: Date.now()
+            }
+        ];
+        await saveCustomGroups();
+    }
+    expandedGroupKeys.add(`custom:${normalizeText(title)}`);
+    groupDialog.close();
+    groupForm.reset();
     render();
 }
 function renderRecord(record) {
@@ -181,6 +289,20 @@ function renderRecord(record) {
     const openBtn = node.querySelector('.open-record-btn');
     const editBtn = node.querySelector('.edit-record-btn');
     const deleteBtn = node.querySelector('.delete-record-btn');
+    node.dataset.recordId = record.id;
+    node.addEventListener('dragstart', (event) => {
+        draggedRecordId = record.id;
+        node.classList.add('dragging');
+        event.dataTransfer?.setData('text/plain', record.id);
+        if (event.dataTransfer) {
+            event.dataTransfer.effectAllowed = 'move';
+        }
+    });
+    node.addEventListener('dragend', () => {
+        draggedRecordId = null;
+        node.classList.remove('dragging');
+        document.querySelectorAll('.drag-over').forEach((element) => element.classList.remove('drag-over'));
+    });
     title.textContent = displayTitle(record);
     site.textContent = record.hostname || record.url;
     meta.textContent = recordMeta(record).join(' · ');
@@ -210,6 +332,7 @@ function formatGroupMeta(group) {
 function renderSingleSection(records) {
     const section = document.createElement('section');
     section.className = 'single-section';
+    setDragTargetEvents(section, null, true);
     const heading = document.createElement('h2');
     heading.className = 'section-heading';
     heading.textContent = 'Ungrouped';
@@ -218,6 +341,13 @@ function renderSingleSection(records) {
         section.append(renderRecord(record));
     }
     return section;
+}
+function renderUngroupDropZone() {
+    const dropZone = document.createElement('section');
+    dropZone.className = 'ungroup-drop-zone';
+    dropZone.textContent = 'Drop here to remove from groups';
+    setDragTargetEvents(dropZone, null, true);
+    return dropZone;
 }
 function renderGroup(group) {
     const node = groupTemplate.content.firstElementChild?.cloneNode(true);
@@ -229,6 +359,7 @@ function renderGroup(group) {
     const deleteBtn = node.querySelector('.delete-group-btn');
     const seasonList = node.querySelector('.season-list');
     const isExpanded = expandedGroupKeys.has(group.key);
+    setDragTargetEvents(node, group.title);
     badge.textContent = group.mediaType.toUpperCase();
     badge.classList.add(group.mediaType);
     title.textContent = group.title;
@@ -274,6 +405,7 @@ function render() {
     }
     statusTextEl.textContent = `${records.length} records · ${groups.length} groups · ${singles.length} ungrouped`;
     const fragment = document.createDocumentFragment();
+    fragment.append(renderUngroupDropZone());
     const entries = [
         ...groups.map((group) => ({ type: 'group', latestAt: group.latestAt, group })),
         ...singles.map((record) => ({ type: 'single', latestAt: record.startedAt, record }))
@@ -418,6 +550,11 @@ async function deleteGroup(group) {
 }
 searchInput.addEventListener('input', render);
 typeFilter.addEventListener('change', render);
+newGroupBtn.addEventListener('click', () => {
+    newGroupNameInput.value = '';
+    newGroupTypeInput.value = typeFilter.value === 'all' ? 'anime' : typeFilter.value;
+    groupDialog.showModal();
+});
 settingsBtn.addEventListener('click', () => {
     if (chrome.runtime.openOptionsPage) {
         void chrome.runtime.openOptionsPage();
@@ -429,12 +566,19 @@ cancelEditBtn.addEventListener('click', () => {
     editDialog.close();
     editorMode = null;
 });
+cancelGroupBtn.addEventListener('click', () => {
+    groupDialog.close();
+});
 editForm.addEventListener('submit', (event) => {
     event.preventDefault();
     void saveEditor();
 });
 resetManualBtn.addEventListener('click', () => {
     void saveEditor(true);
+});
+groupForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    void createCustomGroup();
 });
 void loadHistory();
 export {};

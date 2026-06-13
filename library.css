@@ -88,8 +88,9 @@ h1 {
   border-radius: 12px;
   padding: 14px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 180px;
+  grid-template-columns: minmax(0, 1fr) 180px auto;
   gap: 12px;
+  align-items: end;
 }
 
 .field {
@@ -123,6 +124,10 @@ select {
   font-size: 13px;
 }
 
+.toolbar-btn {
+  min-height: 42px;
+}
+
 .groups {
   display: flex;
   flex-direction: column;
@@ -135,6 +140,13 @@ select {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.group-card.drag-over,
+.single-section.drag-over,
+.ungroup-drop-zone.drag-over {
+  border-color: var(--primary);
+  background: rgba(199, 153, 255, 0.1);
 }
 
 .group-header {
@@ -265,6 +277,21 @@ select {
   gap: 10px;
 }
 
+.ungroup-drop-zone {
+  min-height: 48px;
+  border: 1px dashed rgba(199, 153, 255, 0.25);
+  border-radius: 12px;
+  background: rgba(19, 19, 21, 0.44);
+  color: var(--on-surface-variant);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .section-heading {
   color: var(--on-surface-variant);
   font-size: 12px;
@@ -295,6 +322,15 @@ select {
   display: flex;
   justify-content: space-between;
   gap: 14px;
+}
+
+.record-row[draggable='true'] {
+  cursor: grab;
+}
+
+.record-row.dragging {
+  opacity: 0.48;
+  cursor: grabbing;
 }
 
 .record-main {

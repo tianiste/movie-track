@@ -38,6 +38,10 @@
             <option value="unknown">Unknown</option>
           </select>
         </label>
+        <button id="newGroupBtn" class="icon-text-btn toolbar-btn">
+          <span class="material-symbols-outlined">create_new_folder</span>
+          New Group
+        </button>
       </section>
 
       <section id="statusText" class="status-text">Loading library...</section>
@@ -97,6 +101,41 @@
       </form>
     </dialog>
 
+    <dialog id="groupDialog" class="edit-dialog">
+      <form id="groupForm" method="dialog" class="edit-form">
+        <div class="dialog-heading">
+          <div>
+            <p class="eyebrow">Create</p>
+            <h2>New Group</h2>
+          </div>
+          <button id="cancelGroupBtn" class="icon-btn" value="cancel" type="button" title="Close">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <label class="field">
+          <span>Name</span>
+          <input id="newGroupNameInput" type="text" autocomplete="off" required />
+        </label>
+
+        <label class="field">
+          <span>Category</span>
+          <select id="newGroupTypeInput">
+            <option value="anime">Anime</option>
+            <option value="movie">Movie</option>
+            <option value="youtube">YouTube</option>
+            <option value="unknown">Unknown</option>
+          </select>
+        </label>
+
+        <p class="muted">Create an empty group, then drag records into it.</p>
+
+        <div class="dialog-actions">
+          <button class="action-btn primary-btn" type="submit">Create group</button>
+        </div>
+      </form>
+    </dialog>
+
     <template id="groupTemplate">
       <article class="group-card">
         <header class="group-header">
@@ -127,7 +166,7 @@
     </template>
 
     <template id="recordTemplate">
-      <article class="record-row">
+      <article class="record-row" draggable="true">
         <div class="record-main">
           <h3></h3>
           <p></p>
