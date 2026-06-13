@@ -75,6 +75,8 @@ let customGroups: CustomGroupDefinition[] = [];
 let editorMode: EditorMode = null;
 const expandedGroupKeys = new Set<string>();
 let draggedRecordId: string | null = null;
+let dragScrollSpeed = 0;
+let dragScrollFrame: number | null = null;
 
 function displayTitle(record: WatchRecord): string {
   return record.manualTitle || record.title || record.rawTitle || record.url;
@@ -303,6 +305,44 @@ function clearDragTargets(): void {
   document.querySelectorAll('.drag-over').forEach((element) => element.classList.remove('drag-over'));
 }
 
+function stopDragAutoScroll(): void {
+  dragScrollSpeed = 0;
+  if (dragScrollFrame !== null) {
+    window.cancelAnimationFrame(dragScrollFrame);
+    dragScrollFrame = null;
+  }
+}
+
+function tickDragAutoScroll(): void {
+  if (!dragScrollSpeed || !draggedRecordId) {
+    stopDragAutoScroll();
+    return;
+  }
+
+  window.scrollBy({ top: dragScrollSpeed, behavior: 'auto' });
+  dragScrollFrame = window.requestAnimationFrame(tickDragAutoScroll);
+}
+
+function updateDragAutoScroll(clientY: number): void {
+  const edgeSize = 96;
+  const maxSpeed = 18;
+  const viewportHeight = window.innerHeight;
+  let nextSpeed = 0;
+
+  if (clientY < edgeSize) {
+    nextSpeed = -Math.ceil(((edgeSize - clientY) / edgeSize) * maxSpeed);
+  } else if (clientY > viewportHeight - edgeSize) {
+    nextSpeed = Math.ceil(((clientY - (viewportHeight - edgeSize)) / edgeSize) * maxSpeed);
+  }
+
+  dragScrollSpeed = nextSpeed;
+  if (dragScrollSpeed && dragScrollFrame === null) {
+    dragScrollFrame = window.requestAnimationFrame(tickDragAutoScroll);
+  } else if (!dragScrollSpeed) {
+    stopDragAutoScroll();
+  }
+}
+
 function getDraggedRecordId(event: DragEvent): string | null {
   return draggedRecordId || event.dataTransfer?.getData('text/plain') || null;
 }
@@ -386,6 +426,7 @@ function renderRecord(record: WatchRecord): HTMLElement {
   node.addEventListener('dragend', () => {
     draggedRecordId = null;
     node.classList.remove('dragging');
+    stopDragAutoScroll();
     clearDragTargets();
   });
 
@@ -728,6 +769,8 @@ document.addEventListener('dragover', (event) => {
     return;
   }
 
+  updateDragAutoScroll(event.clientY);
+
   const target = getDropTarget(event);
   if (!target) {
     return;
@@ -750,10 +793,12 @@ document.addEventListener('drop', (event) => {
   event.preventDefault();
   clearDragTargets();
   draggedRecordId = null;
+  stopDragAutoScroll();
   const forceUngroup = target.dataset.ungroup === 'true';
   const groupTitle = forceUngroup ? null : target.dataset.groupTitle || null;
   void moveRecordToGroup(recordId, groupTitle, forceUngroup);
 });
+document.addEventListener('dragend', stopDragAutoScroll);
 
 void loadHistory();
 
