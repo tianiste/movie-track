@@ -530,6 +530,61 @@ h1, h2, h3, h4 {
   gap: 12px;
 }
 
+.popup-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--surface-container-low);
+  border: 1px solid rgba(199, 153, 255, 0.1);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.popup-group-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 2px 2px 0;
+}
+
+.popup-group-title-wrap {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.popup-group-title {
+  color: var(--on-surface);
+  font-size: 13px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.popup-group-meta {
+  color: var(--on-surface-variant);
+  font-size: 10px;
+}
+
+.popup-season {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.popup-season-title {
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding-left: 2px;
+}
+
+.popup-group .record-card {
+  background: var(--surface-container-high);
+}
+
 /* Record Card */
 .record-card {
   position: relative;

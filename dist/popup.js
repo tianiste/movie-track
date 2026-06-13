@@ -126,6 +126,77 @@ function parseSeasonEpisodeFromUrl(urlString) {
 function normalizeFilterText(value) {
     return value.trim().toLowerCase();
 }
+function getDisplayRecord(record) {
+    const fallbackText = [record.title, record.rawTitle, record.hostname, record.url].filter(Boolean).join(' ');
+    const urlHint = parseSeasonEpisodeFromUrl(record.url);
+    return {
+        record,
+        mediaType: record.manualMediaType ?? record.mediaType ?? 'unknown',
+        title: record.manualTitle || record.title || record.rawTitle || record.url,
+        season: record.manualSeason ?? record.season ?? parseSeasonHint(fallbackText) ?? urlHint.season,
+        episode: record.manualEpisode ?? record.episode ?? parseEpisodeHint(fallbackText) ?? urlHint.episode
+    };
+}
+function inferGroupTitle(item) {
+    const title = item.title
+        .replace(/\bS\d{1,2}\s*E\d{1,4}\b/gi, '')
+        .replace(/\bSeason\s*\d{1,2}\b/gi, '')
+        .replace(/\bEpisode\s*\d{1,4}\b/gi, '')
+        .replace(/\bEp\s*\d{1,4}\b/gi, '')
+        .replace(/\bWatch\s+(?:All\s+)?Episodes?\b/gi, '')
+        .replace(/\bWatch\s+Online(?:\s+Free)?\b/gi, '')
+        .replace(/\bin\s+HD\b/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    return title || item.title;
+}
+function groupSeasonRecords(items) {
+    const groupsByKey = new Map();
+    const singles = [];
+    for (const item of items) {
+        if (item.season === null) {
+            singles.push(item);
+            continue;
+        }
+        const groupTitle = inferGroupTitle(item);
+        const key = `${item.mediaType}:${normalizeFilterText(groupTitle)}`;
+        const existing = groupsByKey.get(key);
+        if (existing) {
+            existing.records.push(item);
+            existing.latestAt = Math.max(existing.latestAt, item.record.startedAt);
+        }
+        else {
+            groupsByKey.set(key, {
+                key,
+                title: groupTitle,
+                mediaType: item.mediaType,
+                records: [item],
+                latestAt: item.record.startedAt
+            });
+        }
+    }
+    return {
+        groups: [...groupsByKey.values()].sort((a, b) => b.latestAt - a.latestAt),
+        singles
+    };
+}
+function groupBySeason(items) {
+    const bySeason = new Map();
+    for (const item of items) {
+        const key = item.season === null ? 'unknown' : String(item.season).padStart(4, '0');
+        const existing = bySeason.get(key) || [];
+        existing.push(item);
+        bySeason.set(key, existing);
+    }
+    for (const seasonItems of bySeason.values()) {
+        seasonItems.sort((a, b) => {
+            const episodeA = a.episode ?? Number.MAX_SAFE_INTEGER;
+            const episodeB = b.episode ?? Number.MAX_SAFE_INTEGER;
+            return episodeA - episodeB || b.record.startedAt - a.record.startedAt;
+        });
+    }
+    return new Map([...bySeason.entries()].sort(([a], [b]) => a.localeCompare(b)));
+}
 function setFilterDrawerOpen(open) {
     isFilterDrawerOpen = open;
     filterDrawerEl.classList.toggle('open', open);
@@ -163,6 +234,98 @@ function getFilteredRecords() {
         return true;
     });
 }
+function renderRecordCard(item) {
+    const record = item.record;
+    const node = template.content.firstElementChild?.cloneNode(true);
+    const badgeEl = node.querySelector('.badge');
+    const titleEl = node.querySelector('.card-title');
+    const urlEl = node.querySelector('.card-url');
+    const linkEl = node.querySelector('.open-btn');
+    const metaContainer = node.querySelector('.card-meta');
+    const progressBar = node.querySelector('.progress-bar');
+    const mediaType = item.mediaType;
+    const watchedSeconds = Math.max(0, record.lastPlaybackTime ?? 0);
+    const videoDurationSec = (record.videoDurationSec ?? 0) > 0 ? record.videoDurationSec : null;
+    badgeEl.textContent = mediaType.toUpperCase();
+    badgeEl.className = `badge ${mediaType}`;
+    titleEl.textContent = item.title;
+    urlEl.textContent = (record.hostname || record.url).substring(0, 40);
+    linkEl.href = record.url;
+    linkEl.title = watchedSeconds > 0 ? `Continue from ${formatDuration(watchedSeconds)}` : 'Open';
+    linkEl.addEventListener('click', (event) => {
+        event.preventDefault();
+        void chrome.runtime.sendMessage({
+            type: 'openWithResume',
+            url: record.url,
+            resumeAtSec: watchedSeconds
+        });
+    });
+    const metaItems = metaContainer.querySelectorAll('.meta-item');
+    if (metaItems[0]) {
+        const metaText = metaItems[0].querySelector('.meta-text');
+        metaText.textContent = `${watchedSeconds > 0 ? formatDuration(watchedSeconds) : '—'} elapsed`;
+    }
+    if (metaItems[1]) {
+        const metaText = metaItems[1].querySelector('.meta-text');
+        const today = new Date();
+        const recordDate = new Date(record.startedAt);
+        const isToday = today.toDateString() === recordDate.toDateString();
+        metaText.textContent = isToday ? 'Today' : recordDate.toLocaleDateString();
+    }
+    if (metaItems[2]) {
+        const metaItem = metaItems[2];
+        const metaText = metaItem.querySelector('.meta-text');
+        const seasonLabel = formatSeasonLabel(item.season);
+        metaItem.hidden = !seasonLabel;
+        metaText.textContent = seasonLabel;
+    }
+    if (metaItems[3]) {
+        const metaItem = metaItems[3];
+        const metaText = metaItem.querySelector('.meta-text');
+        const episodeLabel = formatEpisodeNumberLabel(item.episode);
+        metaItem.hidden = !episodeLabel;
+        metaText.textContent = episodeLabel;
+    }
+    const progressPercent = videoDurationSec
+        ? Math.min(100, Math.round((watchedSeconds / videoDurationSec) * 100))
+        : 0;
+    progressBar.style.width = progressPercent + '%';
+    node.classList.add(mediaType);
+    return node;
+}
+function renderSeasonGroup(group) {
+    const groupEl = document.createElement('article');
+    groupEl.className = `popup-group ${group.mediaType}`;
+    const headerEl = document.createElement('header');
+    headerEl.className = 'popup-group-header';
+    const badgeEl = document.createElement('span');
+    badgeEl.className = `badge ${group.mediaType}`;
+    badgeEl.textContent = group.mediaType.toUpperCase();
+    const headingWrap = document.createElement('div');
+    headingWrap.className = 'popup-group-title-wrap';
+    const titleEl = document.createElement('h3');
+    titleEl.className = 'popup-group-title';
+    titleEl.textContent = group.title;
+    const metaEl = document.createElement('p');
+    metaEl.className = 'popup-group-meta';
+    metaEl.textContent = `${group.records.length} records`;
+    headingWrap.append(titleEl, metaEl);
+    headerEl.append(badgeEl, headingWrap);
+    groupEl.append(headerEl);
+    for (const [seasonKey, seasonRecords] of groupBySeason(group.records)) {
+        const seasonEl = document.createElement('section');
+        seasonEl.className = 'popup-season';
+        const seasonTitle = document.createElement('p');
+        seasonTitle.className = 'popup-season-title';
+        seasonTitle.textContent = seasonKey === 'unknown' ? 'No season' : `Season ${Number(seasonKey)}`;
+        seasonEl.append(seasonTitle);
+        for (const item of seasonRecords) {
+            seasonEl.append(renderRecordCard(item));
+        }
+        groupEl.append(seasonEl);
+    }
+    return groupEl;
+}
 function render() {
     const records = getFilteredRecords();
     listEl.textContent = '';
@@ -178,74 +341,15 @@ function render() {
         listEl.append(empty);
         return;
     }
+    const displayRecords = records.map(getDisplayRecord);
+    const { groups, singles } = groupSeasonRecords(displayRecords);
+    const entries = [
+        ...groups.map((group) => ({ type: 'group', latestAt: group.latestAt, group })),
+        ...singles.map((item) => ({ type: 'single', latestAt: item.record.startedAt, item }))
+    ].sort((a, b) => b.latestAt - a.latestAt);
     const fragment = document.createDocumentFragment();
-    for (const record of records) {
-        const node = template.content.firstElementChild?.cloneNode(true);
-        const badgeEl = node.querySelector('.badge');
-        const titleEl = node.querySelector('.card-title');
-        const urlEl = node.querySelector('.card-url');
-        const linkEl = node.querySelector('.open-btn');
-        const metaContainer = node.querySelector('.card-meta');
-        const progressBar = node.querySelector('.progress-bar');
-        const mediaType = record.manualMediaType ?? record.mediaType ?? 'unknown';
-        const title = record.manualTitle || record.title || record.rawTitle || record.url;
-        const watchedSeconds = Math.max(0, record.lastPlaybackTime ?? 0);
-        const videoDurationSec = (record.videoDurationSec ?? 0) > 0 ? record.videoDurationSec : null;
-        const fallbackText = [record.title, record.rawTitle, record.hostname, record.url].filter(Boolean).join(' ');
-        const urlHint = parseSeasonEpisodeFromUrl(record.url);
-        const seasonValue = record.manualSeason ?? record.season ?? parseSeasonHint(fallbackText) ?? urlHint.season;
-        const episodeValue = record.manualEpisode ?? record.episode ?? parseEpisodeHint(fallbackText) ?? urlHint.episode;
-        // Badge
-        badgeEl.textContent = mediaType.toUpperCase();
-        badgeEl.className = `badge ${mediaType}`;
-        // Title and URL
-        titleEl.textContent = title;
-        urlEl.textContent = (record.hostname || record.url).substring(0, 40);
-        linkEl.href = record.url;
-        linkEl.title = watchedSeconds > 0 ? `Continue from ${formatDuration(watchedSeconds)}` : 'Open';
-        linkEl.addEventListener('click', (event) => {
-            event.preventDefault();
-            void chrome.runtime.sendMessage({
-                type: 'openWithResume',
-                url: record.url,
-                resumeAtSec: watchedSeconds
-            });
-        });
-        // Meta info: Schedule and Calendar
-        const metaItems = metaContainer.querySelectorAll('.meta-item');
-        if (metaItems[0]) {
-            const metaText = metaItems[0].querySelector('.meta-text');
-            metaText.textContent = `${watchedSeconds > 0 ? formatDuration(watchedSeconds) : '—'} elapsed`;
-        }
-        if (metaItems[1]) {
-            const metaText = metaItems[1].querySelector('.meta-text');
-            const today = new Date();
-            const recordDate = new Date(record.startedAt);
-            const isToday = today.toDateString() === recordDate.toDateString();
-            metaText.textContent = isToday ? 'Today' : recordDate.toLocaleDateString();
-        }
-        if (metaItems[2]) {
-            const metaItem = metaItems[2];
-            const metaText = metaItem.querySelector('.meta-text');
-            const seasonLabel = formatSeasonLabel(seasonValue);
-            metaItem.hidden = !seasonLabel;
-            metaText.textContent = seasonLabel;
-        }
-        if (metaItems[3]) {
-            const metaItem = metaItems[3];
-            const metaText = metaItem.querySelector('.meta-text');
-            const episodeLabel = formatEpisodeNumberLabel(episodeValue);
-            metaItem.hidden = !episodeLabel;
-            metaText.textContent = episodeLabel;
-        }
-        // Progress bar width (percentage of video watched)
-        const progressPercent = videoDurationSec
-            ? Math.min(100, Math.round((watchedSeconds / videoDurationSec) * 100))
-            : 0;
-        progressBar.style.width = progressPercent + '%';
-        // Add media type class for card styling
-        node.classList.add(mediaType);
-        fragment.append(node);
+    for (const entry of entries) {
+        fragment.append(entry.type === 'group' ? renderSeasonGroup(entry.group) : renderRecordCard(entry.item));
     }
     listEl.append(fragment);
 }
