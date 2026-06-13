@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MovieTrack Library</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" rel="stylesheet" />
+    <link rel="stylesheet" href="library.css" />
+  </head>
+  <body>
+    <main class="library-shell">
+      <header class="library-header">
+        <div>
+          <p class="eyebrow">MovieTrack</p>
+          <h1>Library</h1>
+        </div>
+        <button id="settingsBtn" class="icon-text-btn">
+          <span class="material-symbols-outlined">settings</span>
+          Settings
+        </button>
+      </header>
+
+      <section class="toolbar">
+        <label class="field search-field">
+          <span>Search</span>
+          <input id="searchInput" type="search" placeholder="Title, site, or URL" />
+        </label>
+        <label class="field">
+          <span>Category</span>
+          <select id="typeFilter">
+            <option value="all">All</option>
+            <option value="anime">Anime</option>
+            <option value="movie">Movie</option>
+            <option value="youtube">YouTube</option>
+            <option value="unknown">Unknown</option>
+          </select>
+        </label>
+      </section>
+
+      <section id="statusText" class="status-text">Loading library...</section>
+      <section id="groups" class="groups"></section>
+    </main>
+
+    <dialog id="editDialog" class="edit-dialog">
+      <form id="editForm" method="dialog" class="edit-form">
+        <div class="dialog-heading">
+          <div>
+            <p class="eyebrow">Edit</p>
+            <h2 id="dialogTitle">Record</h2>
+          </div>
+          <button id="cancelEditBtn" class="icon-btn" value="cancel" type="button" title="Close">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <label class="field">
+          <span>Title</span>
+          <input id="titleInput" type="text" autocomplete="off" />
+        </label>
+
+        <label class="field">
+          <span>Category</span>
+          <select id="mediaTypeInput">
+            <option value="anime">Anime</option>
+            <option value="movie">Movie</option>
+            <option value="youtube">YouTube</option>
+            <option value="unknown">Unknown</option>
+          </select>
+        </label>
+
+        <div class="number-grid">
+          <label class="field">
+            <span>Season</span>
+            <input id="seasonInput" type="number" min="0" inputmode="numeric" />
+          </label>
+          <label class="field">
+            <span>Episode</span>
+            <input id="episodeInput" type="number" min="0" inputmode="numeric" />
+          </label>
+        </div>
+
+        <p id="dialogHint" class="muted"></p>
+
+        <div class="dialog-actions">
+          <button id="resetManualBtn" class="action-btn" type="button">Reset manual edits</button>
+          <button id="saveEditBtn" class="action-btn primary-btn" type="submit">Save</button>
+        </div>
+      </form>
+    </dialog>
+
+    <template id="groupTemplate">
+      <article class="group-card">
+        <header class="group-header">
+          <div>
+            <div class="title-line">
+              <span class="badge"></span>
+              <h2></h2>
+            </div>
+            <p class="group-meta"></p>
+          </div>
+          <div class="group-actions">
+            <button class="icon-text-btn edit-group-btn" type="button">
+              <span class="material-symbols-outlined">edit</span>
+              Edit group
+            </button>
+            <button class="icon-text-btn danger-btn delete-group-btn" type="button">
+              <span class="material-symbols-outlined">delete</span>
+              Delete group
+            </button>
+          </div>
+        </header>
+        <div class="season-list"></div>
+      </article>
+    </template>
+
+    <template id="recordTemplate">
+      <article class="record-row">
+        <div class="record-main">
+          <h3></h3>
+          <p></p>
+          <div class="record-meta"></div>
+        </div>
+        <div class="record-actions">
+          <button class="icon-btn open-record-btn" type="button" title="Open">
+            <span class="material-symbols-outlined">open_in_new</span>
+          </button>
+          <button class="icon-btn edit-record-btn" type="button" title="Edit">
+            <span class="material-symbols-outlined">edit</span>
+          </button>
+          <button class="icon-btn danger-btn delete-record-btn" type="button" title="Delete">
+            <span class="material-symbols-outlined">delete</span>
+          </button>
+        </div>
+      </article>
+    </template>
+
+    <script src="dist/library.js" type="module"></script>
+  </body>
+</html>

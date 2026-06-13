@@ -34,21 +34,26 @@ const sourceGlobs = [
   'popup.html',
   'options.html',
   'options.css',
+  'library.html',
+  'library.css',
   'privacy.html',
   'src/background.ts',
   'src/config.ts',
+  'src/library.ts',
   'src/options.ts',
   'src/popup.ts',
   'src/types.ts',
   'supabase/migrations/20260611224728_create_watch_records.sql',
   'supabase/migrations/20260611224833_harden_watch_records_functions.sql',
-  'supabase/migrations/20260612154927_add_youtube_media_type.sql'
+  'supabase/migrations/20260612154927_add_youtube_media_type.sql',
+  'supabase/migrations/20260613185715_add_watch_record_overrides.sql'
 ];
 
 const migrationFiles = [
   'supabase/migrations/20260611224728_create_watch_records.sql',
   'supabase/migrations/20260611224833_harden_watch_records_functions.sql',
-  'supabase/migrations/20260612154927_add_youtube_media_type.sql'
+  'supabase/migrations/20260612154927_add_youtube_media_type.sql',
+  'supabase/migrations/20260613185715_add_watch_record_overrides.sql'
 ];
 
 function fail(message) {
@@ -145,6 +150,8 @@ if (/security\s+definer/i.test(migrations)) {
 const background = readText('src/background.ts');
 const options = readText('src/options.ts');
 const optionsHtml = readText('options.html');
+const library = readText('src/library.ts');
+const libraryHtml = readText('library.html');
 const popup = readText('src/popup.ts');
 const popupHtml = readText('popup.html');
 for (const phrase of [
@@ -199,6 +206,30 @@ for (const phrase of [
 
 if (!options.includes("chrome.runtime.sendMessage({ type: 'syncCloudToLocal' })")) {
   fail('options cloud-to-local sync button is not wired');
+}
+
+for (const phrase of [
+  'id="groupTemplate"',
+  'id="recordTemplate"',
+  'id="editDialog"',
+  'Edit group',
+  'Delete group'
+]) {
+  if (!libraryHtml.includes(phrase)) {
+    fail(`library UI missing invariant: ${phrase}`);
+  }
+}
+
+for (const phrase of [
+  "type: 'updateRecord'",
+  "type: 'deleteRecord'",
+  'function groupRecords',
+  'function openRecordEditor',
+  'function openGroupEditor'
+]) {
+  if (!library.includes(phrase)) {
+    fail(`library edit/delete flow missing invariant: ${phrase}`);
+  }
 }
 
 for (const phrase of [

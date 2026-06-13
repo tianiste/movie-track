@@ -30,6 +30,11 @@ export interface WatchRecord {
   durationSec: number;
   lastPlaybackTime?: number;
   videoDurationSec?: number | null;
+  manualTitle?: string | null;
+  manualMediaType?: MediaType | null;
+  manualSeason?: number | null;
+  manualEpisode?: number | null;
+  deletedAt?: number | null;
   identityKey?: string;
   syncStatus?: SyncStatus;
   syncError?: string;

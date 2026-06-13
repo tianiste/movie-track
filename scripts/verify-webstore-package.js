@@ -11,10 +11,13 @@ const requiredFiles = new Set([
   'popup.css',
   'options.html',
   'options.css',
+  'library.html',
+  'library.css',
   'privacy.html',
   'dist/background.js',
   'dist/popup.js',
   'dist/options.js',
+  'dist/library.js',
   'dist/config.js',
   'dist/types.js'
 ]);

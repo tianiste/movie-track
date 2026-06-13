@@ -16,6 +16,11 @@ interface WatchRecord {
   durationSec: number;
   lastPlaybackTime?: number;
   videoDurationSec?: number | null;
+  manualTitle?: string | null;
+  manualMediaType?: 'anime' | 'movie' | 'youtube' | 'unknown' | null;
+  manualSeason?: number | null;
+  manualEpisode?: number | null;
+  deletedAt?: number | null;
   syncStatus?: SyncStatus;
   syncError?: string;
 }
@@ -58,6 +63,7 @@ const dateFilterEl = document.getElementById('dateFilter') as HTMLInputElement;
 const filterEl = document.getElementById('typeFilter') as HTMLSelectElement;
 const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
 const clearBtn = document.getElementById('clearBtn') as HTMLButtonElement;
+const libraryBtn = document.getElementById('libraryBtn') as HTMLButtonElement;
 const settingsBtn = document.getElementById('settingsBtn') as HTMLButtonElement;
 const enabledToggle = document.getElementById('enabledToggle') as HTMLInputElement;
 const consentCard = document.getElementById('consentCard') as HTMLElement;
@@ -203,10 +209,13 @@ function getFilteredRecords(): WatchRecord[] {
   const type = filterEl.value;
   const searchValue = normalizeFilterText(searchFilterEl.value);
   const dateValue = dateFilterEl.value;
-  const sorted = [...allRecords].sort((a, b) => b.startedAt - a.startedAt);
+  const sorted = allRecords
+    .filter((record) => !record.deletedAt)
+    .sort((a, b) => b.startedAt - a.startedAt);
 
   return sorted.filter((record) => {
-    if (type !== 'all' && record.mediaType !== type) {
+    const mediaType = record.manualMediaType ?? record.mediaType;
+    if (type !== 'all' && mediaType !== type) {
       return false;
     }
 
@@ -216,8 +225,10 @@ function getFilteredRecords(): WatchRecord[] {
 
     if (searchValue) {
       const haystack = normalizeFilterText([
+        record.manualTitle,
         record.title,
         record.rawTitle,
+        record.manualMediaType,
         record.hostname,
         record.url
       ].filter(Boolean).join(' '));
@@ -261,14 +272,14 @@ function render(): void {
     const metaContainer = node.querySelector('.card-meta') as HTMLElement;
     const progressBar = node.querySelector('.progress-bar') as HTMLElement;
 
-    const mediaType = record.mediaType || 'unknown';
-    const title = record.title || record.rawTitle || record.url;
+    const mediaType = record.manualMediaType ?? record.mediaType ?? 'unknown';
+    const title = record.manualTitle || record.title || record.rawTitle || record.url;
     const watchedSeconds = Math.max(0, record.lastPlaybackTime ?? 0);
     const videoDurationSec = (record.videoDurationSec ?? 0) > 0 ? (record.videoDurationSec as number) : null;
     const fallbackText = [record.title, record.rawTitle, record.hostname, record.url].filter(Boolean).join(' ');
     const urlHint = parseSeasonEpisodeFromUrl(record.url);
-    const seasonValue = record.season ?? parseSeasonHint(fallbackText) ?? urlHint.season;
-    const episodeValue = record.episode ?? parseEpisodeHint(fallbackText) ?? urlHint.episode;
+    const seasonValue = record.manualSeason ?? record.season ?? parseSeasonHint(fallbackText) ?? urlHint.season;
+    const episodeValue = record.manualEpisode ?? record.episode ?? parseEpisodeHint(fallbackText) ?? urlHint.episode;
 
     // Badge
     badgeEl.textContent = mediaType.toUpperCase();
@@ -493,6 +504,9 @@ settingsBtn.addEventListener('click', () => {
     return;
   }
   void chrome.tabs.create({ url: chrome.runtime.getURL('options.html') });
+});
+libraryBtn.addEventListener('click', () => {
+  void chrome.tabs.create({ url: chrome.runtime.getURL('library.html') });
 });
 acceptConsentBtn.addEventListener('click', () => {
   void acceptPrivacyConsent();

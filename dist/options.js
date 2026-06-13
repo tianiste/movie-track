@@ -10,11 +10,15 @@ const deleteCloudBtn = document.getElementById('deleteCloudBtn');
 const exportBtn = document.getElementById('exportBtn');
 const clearLocalBtn = document.getElementById('clearLocalBtn');
 const openPrivacyBtn = document.getElementById('openPrivacyBtn');
+const openLibraryBtn = document.getElementById('openLibraryBtn');
 let allRecords = [];
 let isSignedIn = false;
 function formatHours(records) {
     const seconds = records.reduce((sum, record) => sum + Math.max(0, record.durationSec || 0), 0);
     return (seconds / 3600).toFixed(1);
+}
+function getVisibleRecords() {
+    return allRecords.filter((record) => !record.deletedAt);
 }
 function renderSyncSummary() {
     if (!isSignedIn) {
@@ -34,8 +38,9 @@ function renderSyncSummary() {
     syncStatusText.textContent = 'Cloud sync is up to date';
 }
 function renderLocalSummary() {
-    const recordLabel = allRecords.length === 1 ? 'record' : 'records';
-    localStatusText.textContent = `${allRecords.length} ${recordLabel}, ${formatHours(allRecords)} hours watched`;
+    const visibleRecords = getVisibleRecords();
+    const recordLabel = visibleRecords.length === 1 ? 'record' : 'records';
+    localStatusText.textContent = `${visibleRecords.length} ${recordLabel}, ${formatHours(visibleRecords)} hours watched`;
 }
 function setAuthUiState(response) {
     isSignedIn = Boolean(response.signedIn);
@@ -177,7 +182,7 @@ async function deleteCloudData() {
     deleteCloudBtn.disabled = !isSignedIn;
 }
 function exportData() {
-    const data = JSON.stringify(allRecords, null, 2);
+    const data = JSON.stringify(getVisibleRecords(), null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -225,6 +230,9 @@ clearLocalBtn.addEventListener('click', () => {
 });
 openPrivacyBtn.addEventListener('click', () => {
     void chrome.tabs.create({ url: chrome.runtime.getURL('privacy.html') });
+});
+openLibraryBtn.addEventListener('click', () => {
+    void chrome.tabs.create({ url: chrome.runtime.getURL('library.html') });
 });
 async function init() {
     await loadAuthStatus();

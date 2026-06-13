@@ -62,6 +62,11 @@ interface CloudWatchRecord {
   duration_sec: number;
   last_playback_time: number | null;
   video_duration_sec: number | null;
+  manual_title: string | null;
+  manual_media_type: MediaType | null;
+  manual_season: number | null;
+  manual_episode: number | null;
+  deleted_at: string | null;
   identity_key: string;
   updated_at: string;
 }
@@ -439,6 +444,11 @@ function toCloudRecord(record: WatchRecord, userId: string): Omit<CloudWatchReco
     duration_sec: Math.max(0, withIdentity.durationSec || 0),
     last_playback_time: withIdentity.lastPlaybackTime ?? null,
     video_duration_sec: withIdentity.videoDurationSec ?? null,
+    manual_title: withIdentity.manualTitle ?? null,
+    manual_media_type: withIdentity.manualMediaType ?? null,
+    manual_season: withIdentity.manualSeason ?? null,
+    manual_episode: withIdentity.manualEpisode ?? null,
+    deleted_at: withIdentity.deletedAt ? dateFromMillis(withIdentity.deletedAt) : null,
     identity_key: withIdentity.identityKey as string
   };
 }
@@ -460,6 +470,11 @@ function fromCloudRecord(record: CloudWatchRecord): WatchRecord {
     durationSec: Math.max(0, record.duration_sec || 0),
     lastPlaybackTime: record.last_playback_time ?? undefined,
     videoDurationSec: record.video_duration_sec,
+    manualTitle: record.manual_title,
+    manualMediaType: record.manual_media_type,
+    manualSeason: record.manual_season,
+    manualEpisode: record.manual_episode,
+    deletedAt: record.deleted_at ? millisFromDate(record.deleted_at) : null,
     identityKey: record.identity_key,
     syncStatus: 'synced',
     cloudId: record.id,
@@ -493,6 +508,16 @@ function mergeForCloud(base: WatchRecord, incoming: WatchRecord): WatchRecord {
   }
   if ((output.rawTitle || '').length < (next.rawTitle || '').length) {
     output.rawTitle = next.rawTitle;
+  }
+
+  const outputUpdated = output.updatedAt ?? 0;
+  const nextUpdated = next.updatedAt ?? 0;
+  if (nextUpdated >= outputUpdated) {
+    output.manualTitle = next.manualTitle ?? null;
+    output.manualMediaType = next.manualMediaType ?? null;
+    output.manualSeason = next.manualSeason ?? null;
+    output.manualEpisode = next.manualEpisode ?? null;
+    output.deletedAt = next.deletedAt ?? null;
   }
 
   output.url = next.url || output.url;
@@ -984,6 +1009,16 @@ function mergeIntoRecord(base: WatchRecord, incoming: WatchRecord): WatchRecord 
     base.rawTitle = incoming.rawTitle;
   }
 
+  const baseUpdated = base.updatedAt ?? 0;
+  const incomingUpdated = incoming.updatedAt ?? 0;
+  if (incomingUpdated >= baseUpdated) {
+    base.manualTitle = incoming.manualTitle ?? null;
+    base.manualMediaType = incoming.manualMediaType ?? null;
+    base.manualSeason = incoming.manualSeason ?? null;
+    base.manualEpisode = incoming.manualEpisode ?? null;
+    base.deletedAt = incoming.deletedAt ?? null;
+  }
+
   base.url = incoming.url;
   base.hostname = incoming.hostname;
   base.confidence = Math.max(base.confidence, incoming.confidence);
@@ -1019,6 +1054,93 @@ function compactHistory(history: WatchRecord[]): WatchRecord[] {
   }
 
   return orderedKeys.map((key) => byKey.get(key) as WatchRecord);
+}
+
+type RecordPatch = Partial<Pick<WatchRecord, 'manualTitle' | 'manualMediaType' | 'manualSeason' | 'manualEpisode'>>;
+
+function normalizeRecordPatch(patch: RecordPatch): RecordPatch {
+  const next: RecordPatch = {};
+
+  if ('manualTitle' in patch) {
+    const value = typeof patch.manualTitle === 'string' ? patch.manualTitle.trim() : '';
+    next.manualTitle = value || null;
+  }
+
+  if ('manualMediaType' in patch) {
+    next.manualMediaType = patch.manualMediaType ?? null;
+  }
+
+  if ('manualSeason' in patch) {
+    const season = patch.manualSeason;
+    next.manualSeason = typeof season === 'number' && Number.isFinite(season) ? Math.max(0, season) : null;
+  }
+
+  if ('manualEpisode' in patch) {
+    const episode = patch.manualEpisode;
+    next.manualEpisode = typeof episode === 'number' && Number.isFinite(episode) ? Math.max(0, episode) : null;
+  }
+
+  return next;
+}
+
+async function updateLocalRecord(recordId: string, patch: RecordPatch): Promise<WatchRecord[]> {
+  const history = compactHistory(await getStorage<WatchRecord[]>(HISTORY_KEY, []));
+  const now = Date.now();
+  const normalizedPatch = normalizeRecordPatch(patch);
+  let changed = false;
+
+  const nextHistory = history.map((record) => {
+    if (record.id !== recordId) {
+      return record;
+    }
+
+    changed = true;
+    return ensureRecordIdentity({
+      ...record,
+      ...normalizedPatch,
+      deletedAt: null,
+      syncStatus: 'pending',
+      syncError: undefined,
+      updatedAt: now
+    });
+  });
+
+  if (!changed) {
+    throw new Error('Record not found');
+  }
+
+  await setStorage(HISTORY_KEY, nextHistory);
+  void syncPendingRecords();
+  return nextHistory;
+}
+
+async function deleteLocalRecord(recordId: string): Promise<WatchRecord[]> {
+  const history = compactHistory(await getStorage<WatchRecord[]>(HISTORY_KEY, []));
+  const now = Date.now();
+  let changed = false;
+
+  const nextHistory = history.map((record) => {
+    if (record.id !== recordId) {
+      return record;
+    }
+
+    changed = true;
+    return ensureRecordIdentity({
+      ...record,
+      deletedAt: now,
+      syncStatus: 'pending',
+      syncError: undefined,
+      updatedAt: now
+    });
+  });
+
+  if (!changed) {
+    throw new Error('Record not found');
+  }
+
+  await setStorage(HISTORY_KEY, nextHistory);
+  void syncPendingRecords();
+  return nextHistory;
 }
 
 async function syncPendingRecords(): Promise<{ ok: boolean; synced: number; failed: number; error?: string }> {
@@ -1290,6 +1412,8 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
       type?: string;
       enabled?: boolean;
       scope?: 'local' | 'cloudAndLocal';
+      id?: string;
+      patch?: RecordPatch;
     };
 
     if (payload?.type === 'getPrivacyStatus') {
@@ -1426,6 +1550,42 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
         sendResponse({
           ok: false,
           error: error instanceof Error ? error.message : 'Clear failed'
+        });
+      }
+      return;
+    }
+
+    if (payload?.type === 'updateRecord') {
+      try {
+        if (!payload.id || !payload.patch) {
+          sendResponse({ ok: false, error: 'Missing record update data' });
+          return;
+        }
+
+        const history = await updateLocalRecord(payload.id, payload.patch);
+        sendResponse({ ok: true, history });
+      } catch (error) {
+        sendResponse({
+          ok: false,
+          error: error instanceof Error ? error.message : 'Update failed'
+        });
+      }
+      return;
+    }
+
+    if (payload?.type === 'deleteRecord') {
+      try {
+        if (!payload.id) {
+          sendResponse({ ok: false, error: 'Missing record id' });
+          return;
+        }
+
+        const history = await deleteLocalRecord(payload.id);
+        sendResponse({ ok: true, history });
+      } catch (error) {
+        sendResponse({
+          ok: false,
+          error: error instanceof Error ? error.message : 'Delete failed'
         });
       }
       return;

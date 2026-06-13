@@ -9,6 +9,7 @@ const dateFilterEl = document.getElementById('dateFilter');
 const filterEl = document.getElementById('typeFilter');
 const exportBtn = document.getElementById('exportBtn');
 const clearBtn = document.getElementById('clearBtn');
+const libraryBtn = document.getElementById('libraryBtn');
 const settingsBtn = document.getElementById('settingsBtn');
 const enabledToggle = document.getElementById('enabledToggle');
 const consentCard = document.getElementById('consentCard');
@@ -135,9 +136,12 @@ function getFilteredRecords() {
     const type = filterEl.value;
     const searchValue = normalizeFilterText(searchFilterEl.value);
     const dateValue = dateFilterEl.value;
-    const sorted = [...allRecords].sort((a, b) => b.startedAt - a.startedAt);
+    const sorted = allRecords
+        .filter((record) => !record.deletedAt)
+        .sort((a, b) => b.startedAt - a.startedAt);
     return sorted.filter((record) => {
-        if (type !== 'all' && record.mediaType !== type) {
+        const mediaType = record.manualMediaType ?? record.mediaType;
+        if (type !== 'all' && mediaType !== type) {
             return false;
         }
         if (dateValue && toDateInputValue(record.startedAt) !== dateValue) {
@@ -145,8 +149,10 @@ function getFilteredRecords() {
         }
         if (searchValue) {
             const haystack = normalizeFilterText([
+                record.manualTitle,
                 record.title,
                 record.rawTitle,
+                record.manualMediaType,
                 record.hostname,
                 record.url
             ].filter(Boolean).join(' '));
@@ -181,14 +187,14 @@ function render() {
         const linkEl = node.querySelector('.open-btn');
         const metaContainer = node.querySelector('.card-meta');
         const progressBar = node.querySelector('.progress-bar');
-        const mediaType = record.mediaType || 'unknown';
-        const title = record.title || record.rawTitle || record.url;
+        const mediaType = record.manualMediaType ?? record.mediaType ?? 'unknown';
+        const title = record.manualTitle || record.title || record.rawTitle || record.url;
         const watchedSeconds = Math.max(0, record.lastPlaybackTime ?? 0);
         const videoDurationSec = (record.videoDurationSec ?? 0) > 0 ? record.videoDurationSec : null;
         const fallbackText = [record.title, record.rawTitle, record.hostname, record.url].filter(Boolean).join(' ');
         const urlHint = parseSeasonEpisodeFromUrl(record.url);
-        const seasonValue = record.season ?? parseSeasonHint(fallbackText) ?? urlHint.season;
-        const episodeValue = record.episode ?? parseEpisodeHint(fallbackText) ?? urlHint.episode;
+        const seasonValue = record.manualSeason ?? record.season ?? parseSeasonHint(fallbackText) ?? urlHint.season;
+        const episodeValue = record.manualEpisode ?? record.episode ?? parseEpisodeHint(fallbackText) ?? urlHint.episode;
         // Badge
         badgeEl.textContent = mediaType.toUpperCase();
         badgeEl.className = `badge ${mediaType}`;
@@ -381,6 +387,9 @@ settingsBtn.addEventListener('click', () => {
         return;
     }
     void chrome.tabs.create({ url: chrome.runtime.getURL('options.html') });
+});
+libraryBtn.addEventListener('click', () => {
+    void chrome.tabs.create({ url: chrome.runtime.getURL('library.html') });
 });
 acceptConsentBtn.addEventListener('click', () => {
     void acceptPrivacyConsent();

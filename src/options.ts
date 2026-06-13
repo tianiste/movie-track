@@ -7,6 +7,7 @@ interface WatchRecord {
   hostname: string;
   url: string;
   durationSec: number;
+  deletedAt?: number | null;
   syncStatus?: SyncStatus;
 }
 
@@ -49,6 +50,7 @@ const deleteCloudBtn = document.getElementById('deleteCloudBtn') as HTMLButtonEl
 const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
 const clearLocalBtn = document.getElementById('clearLocalBtn') as HTMLButtonElement;
 const openPrivacyBtn = document.getElementById('openPrivacyBtn') as HTMLButtonElement;
+const openLibraryBtn = document.getElementById('openLibraryBtn') as HTMLButtonElement;
 
 let allRecords: WatchRecord[] = [];
 let isSignedIn = false;
@@ -56,6 +58,10 @@ let isSignedIn = false;
 function formatHours(records: WatchRecord[]): string {
   const seconds = records.reduce((sum, record) => sum + Math.max(0, record.durationSec || 0), 0);
   return (seconds / 3600).toFixed(1);
+}
+
+function getVisibleRecords(): WatchRecord[] {
+  return allRecords.filter((record) => !record.deletedAt);
 }
 
 function renderSyncSummary(): void {
@@ -81,8 +87,9 @@ function renderSyncSummary(): void {
 }
 
 function renderLocalSummary(): void {
-  const recordLabel = allRecords.length === 1 ? 'record' : 'records';
-  localStatusText.textContent = `${allRecords.length} ${recordLabel}, ${formatHours(allRecords)} hours watched`;
+  const visibleRecords = getVisibleRecords();
+  const recordLabel = visibleRecords.length === 1 ? 'record' : 'records';
+  localStatusText.textContent = `${visibleRecords.length} ${recordLabel}, ${formatHours(visibleRecords)} hours watched`;
 }
 
 function setAuthUiState(response: AuthStatusResponse): void {
@@ -262,7 +269,7 @@ async function deleteCloudData(): Promise<void> {
 }
 
 function exportData(): void {
-  const data = JSON.stringify(allRecords, null, 2);
+  const data = JSON.stringify(getVisibleRecords(), null, 2);
   const blob = new Blob([data], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
 
@@ -315,6 +322,9 @@ clearLocalBtn.addEventListener('click', () => {
 });
 openPrivacyBtn.addEventListener('click', () => {
   void chrome.tabs.create({ url: chrome.runtime.getURL('privacy.html') });
+});
+openLibraryBtn.addEventListener('click', () => {
+  void chrome.tabs.create({ url: chrome.runtime.getURL('library.html') });
 });
 
 async function init(): Promise<void> {
