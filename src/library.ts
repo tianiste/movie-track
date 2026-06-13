@@ -658,7 +658,20 @@ async function deleteRecord(record: WatchRecord): Promise<void> {
 }
 
 async function deleteGroup(group: WatchGroup): Promise<void> {
-  if (!confirm(`Delete ${group.records.length} records in "${group.title}"?`)) {
+  const isEmptyCustomGroup = group.custom && group.records.length === 0;
+  const message = isEmptyCustomGroup
+    ? `Delete empty group "${group.title}"?`
+    : `Delete ${group.records.length} records in "${group.title}"?`;
+
+  if (!confirm(message)) {
+    return;
+  }
+
+  if (isEmptyCustomGroup) {
+    customGroups = customGroups.filter((item) => normalizeText(item.title) !== normalizeText(group.title));
+    await saveCustomGroups();
+    expandedGroupKeys.delete(group.key);
+    render();
     return;
   }
 
