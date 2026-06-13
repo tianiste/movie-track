@@ -71,6 +71,12 @@
           </select>
         </label>
 
+        <label class="field">
+          <span>Group</span>
+          <input id="groupInput" type="text" list="groupNameOptions" autocomplete="off" placeholder="Empty = auto group by season only" />
+          <datalist id="groupNameOptions"></datalist>
+        </label>
+
         <div class="number-grid">
           <label class="field">
             <span>Season</span>
@@ -105,6 +111,10 @@
             <button class="icon-text-btn edit-group-btn" type="button">
               <span class="material-symbols-outlined">edit</span>
               Edit group
+            </button>
+            <button class="icon-text-btn toggle-group-btn" type="button">
+              <span class="material-symbols-outlined">expand_more</span>
+              Episodes
             </button>
             <button class="icon-text-btn danger-btn delete-group-btn" type="button">
               <span class="material-symbols-outlined">delete</span>

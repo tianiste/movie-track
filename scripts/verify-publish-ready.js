@@ -46,14 +46,16 @@ const sourceGlobs = [
   'supabase/migrations/20260611224728_create_watch_records.sql',
   'supabase/migrations/20260611224833_harden_watch_records_functions.sql',
   'supabase/migrations/20260612154927_add_youtube_media_type.sql',
-  'supabase/migrations/20260613185715_add_watch_record_overrides.sql'
+  'supabase/migrations/20260613185715_add_watch_record_overrides.sql',
+  'supabase/migrations/20260613192133_add_watch_record_group_overrides.sql'
 ];
 
 const migrationFiles = [
   'supabase/migrations/20260611224728_create_watch_records.sql',
   'supabase/migrations/20260611224833_harden_watch_records_functions.sql',
   'supabase/migrations/20260612154927_add_youtube_media_type.sql',
-  'supabase/migrations/20260613185715_add_watch_record_overrides.sql'
+  'supabase/migrations/20260613185715_add_watch_record_overrides.sql',
+  'supabase/migrations/20260613192133_add_watch_record_group_overrides.sql'
 ];
 
 function fail(message) {
@@ -212,6 +214,7 @@ for (const phrase of [
   'id="groupTemplate"',
   'id="recordTemplate"',
   'id="editDialog"',
+  'id="groupInput"',
   'Edit group',
   'Delete group'
 ]) {
@@ -225,7 +228,8 @@ for (const phrase of [
   "type: 'deleteRecord'",
   'function groupRecords',
   'function openRecordEditor',
-  'function openGroupEditor'
+  'function openGroupEditor',
+  'manualGroupTitle'
 ]) {
   if (!library.includes(phrase)) {
     fail(`library edit/delete flow missing invariant: ${phrase}`);

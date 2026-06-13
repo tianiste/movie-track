@@ -237,10 +237,40 @@ select {
   color: var(--error);
 }
 
+.toggle-group-btn .material-symbols-outlined {
+  transition: transform 0.2s ease;
+}
+
+.group-card.expanded .toggle-group-btn .material-symbols-outlined {
+  transform: rotate(180deg);
+}
+
 .season-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.season-list[hidden] {
+  display: none;
+}
+
+.single-section {
+  border: 1px solid rgba(199, 153, 255, 0.08);
+  border-radius: 12px;
+  padding: 14px;
+  background: rgba(19, 19, 21, 0.58);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.section-heading {
+  color: var(--on-surface-variant);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .season-block {

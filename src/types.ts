@@ -34,6 +34,7 @@ export interface WatchRecord {
   manualMediaType?: MediaType | null;
   manualSeason?: number | null;
   manualEpisode?: number | null;
+  manualGroupTitle?: string | null;
   deletedAt?: number | null;
   identityKey?: string;
   syncStatus?: SyncStatus;

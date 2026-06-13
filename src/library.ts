@@ -19,6 +19,7 @@ interface WatchRecord {
   manualMediaType?: MediaType | null;
   manualSeason?: number | null;
   manualEpisode?: number | null;
+  manualGroupTitle?: string | null;
   deletedAt?: number | null;
   syncStatus?: SyncStatus;
 }
@@ -28,10 +29,12 @@ interface WatchGroup {
   title: string;
   mediaType: MediaType;
   latestAt: number;
+  custom: boolean;
   records: WatchRecord[];
 }
 
 type EditorMode = { type: 'record'; record: WatchRecord } | { type: 'group'; group: WatchGroup } | null;
+type RecordPatch = Partial<Pick<WatchRecord, 'manualTitle' | 'manualMediaType' | 'manualSeason' | 'manualEpisode' | 'manualGroupTitle'>>;
 
 const groupsEl = document.getElementById('groups') as HTMLElement;
 const statusTextEl = document.getElementById('statusText') as HTMLElement;
@@ -48,11 +51,14 @@ const cancelEditBtn = document.getElementById('cancelEditBtn') as HTMLButtonElem
 const resetManualBtn = document.getElementById('resetManualBtn') as HTMLButtonElement;
 const titleInput = document.getElementById('titleInput') as HTMLInputElement;
 const mediaTypeInput = document.getElementById('mediaTypeInput') as HTMLSelectElement;
+const groupInput = document.getElementById('groupInput') as HTMLInputElement;
+const groupNameOptions = document.getElementById('groupNameOptions') as HTMLDataListElement;
 const seasonInput = document.getElementById('seasonInput') as HTMLInputElement;
 const episodeInput = document.getElementById('episodeInput') as HTMLInputElement;
 
 let allRecords: WatchRecord[] = [];
 let editorMode: EditorMode = null;
+const expandedGroupKeys = new Set<string>();
 
 function displayTitle(record: WatchRecord): string {
   return record.manualTitle || record.title || record.rawTitle || record.url;
@@ -68,6 +74,11 @@ function displaySeason(record: WatchRecord): number | null {
 
 function displayEpisode(record: WatchRecord): number | null {
   return record.manualEpisode ?? record.episode ?? null;
+}
+
+function displayGroupTitle(record: WatchRecord): string | null {
+  const title = record.manualGroupTitle?.trim();
+  return title || null;
 }
 
 function normalizeText(value: string): string {
@@ -145,13 +156,32 @@ function getFilteredRecords(): WatchRecord[] {
     .sort((a, b) => b.startedAt - a.startedAt);
 }
 
-function groupRecords(records: WatchRecord[]): WatchGroup[] {
+function getGroupTitle(record: WatchRecord): { title: string; custom: boolean } | null {
+  const customTitle = displayGroupTitle(record);
+  if (customTitle) {
+    return { title: customTitle, custom: true };
+  }
+
+  if (displaySeason(record) === null) {
+    return null;
+  }
+
+  return { title: inferGroupTitle(record), custom: false };
+}
+
+function groupRecords(records: WatchRecord[]): { groups: WatchGroup[]; singles: WatchRecord[] } {
   const byKey = new Map<string, WatchGroup>();
+  const singles: WatchRecord[] = [];
 
   for (const record of records) {
     const mediaType = displayMediaType(record);
-    const title = inferGroupTitle(record);
-    const key = `${mediaType}:${normalizeText(title)}`;
+    const groupInfo = getGroupTitle(record);
+    if (!groupInfo) {
+      singles.push(record);
+      continue;
+    }
+
+    const key = `${groupInfo.custom ? 'custom' : mediaType}:${normalizeText(groupInfo.title)}`;
     const existing = byKey.get(key);
 
     if (existing) {
@@ -160,15 +190,19 @@ function groupRecords(records: WatchRecord[]): WatchGroup[] {
     } else {
       byKey.set(key, {
         key,
-        title,
+        title: groupInfo.title,
         mediaType,
+        custom: groupInfo.custom,
         latestAt: record.startedAt,
         records: [record]
       });
     }
   }
 
-  return [...byKey.values()].sort((a, b) => b.latestAt - a.latestAt);
+  return {
+    groups: [...byKey.values()].sort((a, b) => b.latestAt - a.latestAt),
+    singles
+  };
 }
 
 function groupedBySeason(records: WatchRecord[]): Map<string, WatchRecord[]> {
@@ -237,21 +271,63 @@ function renderRecord(record: WatchRecord): HTMLElement {
   return node;
 }
 
+function formatGroupMeta(group: WatchGroup): string {
+  const seasons = [...new Set(group.records.map(displaySeason).filter((season): season is number => season !== null))]
+    .sort((a, b) => a - b);
+  const seasonLabel = seasons.length === 0
+    ? 'Custom group'
+    : seasons.length === 1
+      ? `Season ${seasons[0]}`
+      : `Seasons ${seasons.join(', ')}`;
+
+  return `${seasonLabel} · ${group.records.length} records · latest ${formatDate(group.latestAt)}`;
+}
+
+function renderSingleSection(records: WatchRecord[]): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'single-section';
+
+  const heading = document.createElement('h2');
+  heading.className = 'section-heading';
+  heading.textContent = 'Ungrouped';
+  section.append(heading);
+
+  for (const record of records) {
+    section.append(renderRecord(record));
+  }
+
+  return section;
+}
+
 function renderGroup(group: WatchGroup): HTMLElement {
   const node = groupTemplate.content.firstElementChild?.cloneNode(true) as HTMLElement;
   const badge = node.querySelector('.badge') as HTMLElement;
   const title = node.querySelector('h2') as HTMLElement;
   const meta = node.querySelector('.group-meta') as HTMLElement;
   const editBtn = node.querySelector('.edit-group-btn') as HTMLButtonElement;
+  const toggleBtn = node.querySelector('.toggle-group-btn') as HTMLButtonElement;
   const deleteBtn = node.querySelector('.delete-group-btn') as HTMLButtonElement;
   const seasonList = node.querySelector('.season-list') as HTMLElement;
+  const isExpanded = expandedGroupKeys.has(group.key);
 
   badge.textContent = group.mediaType.toUpperCase();
   badge.classList.add(group.mediaType);
   title.textContent = group.title;
-  meta.textContent = `${group.records.length} records · latest ${formatDate(group.latestAt)}`;
+  meta.textContent = formatGroupMeta(group);
+  node.classList.toggle('expanded', isExpanded);
+  seasonList.hidden = !isExpanded;
+  toggleBtn.setAttribute('aria-expanded', String(isExpanded));
+  toggleBtn.title = isExpanded ? 'Hide episodes' : 'Show episodes';
 
   editBtn.addEventListener('click', () => openGroupEditor(group));
+  toggleBtn.addEventListener('click', () => {
+    if (expandedGroupKeys.has(group.key)) {
+      expandedGroupKeys.delete(group.key);
+    } else {
+      expandedGroupKeys.add(group.key);
+    }
+    render();
+  });
   deleteBtn.addEventListener('click', () => {
     void deleteGroup(group);
   });
@@ -277,7 +353,7 @@ function renderGroup(group: WatchGroup): HTMLElement {
 
 function render(): void {
   const records = getFilteredRecords();
-  const groups = groupRecords(records);
+  const { groups, singles } = groupRecords(records);
   groupsEl.textContent = '';
 
   if (records.length === 0) {
@@ -285,12 +361,41 @@ function render(): void {
     return;
   }
 
-  statusTextEl.textContent = `${records.length} records in ${groups.length} groups`;
+  statusTextEl.textContent = `${records.length} records · ${groups.length} groups · ${singles.length} ungrouped`;
 
   const fragment = document.createDocumentFragment();
-  for (const group of groups) {
-    fragment.append(renderGroup(group));
+  const entries = [
+    ...groups.map((group) => ({ type: 'group' as const, latestAt: group.latestAt, group })),
+    ...singles.map((record) => ({ type: 'single' as const, latestAt: record.startedAt, record }))
+  ].sort((a, b) => b.latestAt - a.latestAt);
+
+  let pendingSingles: WatchRecord[] = [];
+  const flushSingles = (): void => {
+    if (pendingSingles.length === 0) {
+      return;
+    }
+    fragment.append(renderSingleSection(pendingSingles));
+    pendingSingles = [];
+  };
+
+  for (const entry of entries) {
+    if (entry.type === 'single') {
+      pendingSingles.push(entry.record);
+      continue;
+    }
+
+    flushSingles();
+    fragment.append(renderGroup(entry.group));
   }
+  flushSingles();
+
+  groupNameOptions.textContent = '';
+  for (const group of groups) {
+    const option = document.createElement('option');
+    option.value = group.title;
+    groupNameOptions.append(option);
+  }
+
   groupsEl.append(fragment);
 }
 
@@ -302,9 +407,10 @@ function parseNumberInput(input: HTMLInputElement): number | null {
   return Number.isFinite(value) ? Math.max(0, Math.round(value)) : null;
 }
 
-function setDialogValues(title: string, mediaType: MediaType, season: number | null, episode: number | null): void {
+function setDialogValues(title: string, mediaType: MediaType, groupTitle: string | null, season: number | null, episode: number | null): void {
   titleInput.value = title;
   mediaTypeInput.value = mediaType;
+  groupInput.value = groupTitle ?? '';
   seasonInput.value = season === null ? '' : String(season);
   episodeInput.value = episode === null ? '' : String(episode);
 }
@@ -312,33 +418,42 @@ function setDialogValues(title: string, mediaType: MediaType, season: number | n
 function openRecordEditor(record: WatchRecord): void {
   editorMode = { type: 'record', record };
   dialogTitle.textContent = 'Record';
-  dialogHint.textContent = 'Edits override auto-detection for this one record.';
-  setDialogValues(displayTitle(record), displayMediaType(record), displaySeason(record), displayEpisode(record));
+  dialogHint.textContent = 'Set Group to move this record into a custom group. Empty uses season auto-grouping only.';
+  setDialogValues(displayTitle(record), displayMediaType(record), displayGroupTitle(record), displaySeason(record), displayEpisode(record));
   editDialog.showModal();
 }
 
 function openGroupEditor(group: WatchGroup): void {
   editorMode = { type: 'group', group };
   dialogTitle.textContent = 'Group';
-  dialogHint.textContent = 'Group edits apply title and category to every record in this group. Season and episode stay per-record unless filled here.';
-  setDialogValues(group.title, group.mediaType, null, null);
+  dialogHint.textContent = 'Changing Group moves every item here into that custom group. Title changes are not applied to every episode.';
+  setDialogValues('', group.mediaType, group.title, null, null);
   editDialog.showModal();
 }
 
 async function updateRecord(record: WatchRecord, reset = false): Promise<void> {
-  const patch = reset
+  let patch: RecordPatch = reset
     ? {
         manualTitle: null,
         manualMediaType: null,
         manualSeason: null,
-        manualEpisode: null
+        manualEpisode: null,
+        manualGroupTitle: null
       }
     : {
         manualTitle: titleInput.value,
         manualMediaType: mediaTypeInput.value as MediaType,
         manualSeason: parseNumberInput(seasonInput),
-        manualEpisode: parseNumberInput(episodeInput)
+        manualEpisode: parseNumberInput(episodeInput),
+        manualGroupTitle: groupInput.value
       };
+
+  if (!reset && editorMode?.type === 'group') {
+    patch = {
+      manualMediaType: mediaTypeInput.value as MediaType,
+      manualGroupTitle: groupInput.value
+    };
+  }
 
   const response = (await chrome.runtime.sendMessage({
     type: 'updateRecord',

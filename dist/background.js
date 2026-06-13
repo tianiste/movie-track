@@ -324,6 +324,7 @@ function toCloudRecord(record, userId) {
         manual_media_type: withIdentity.manualMediaType ?? null,
         manual_season: withIdentity.manualSeason ?? null,
         manual_episode: withIdentity.manualEpisode ?? null,
+        manual_group_title: withIdentity.manualGroupTitle ?? null,
         deleted_at: withIdentity.deletedAt ? dateFromMillis(withIdentity.deletedAt) : null,
         identity_key: withIdentity.identityKey
     };
@@ -349,6 +350,7 @@ function fromCloudRecord(record) {
         manualMediaType: record.manual_media_type,
         manualSeason: record.manual_season,
         manualEpisode: record.manual_episode,
+        manualGroupTitle: record.manual_group_title,
         deletedAt: record.deleted_at ? millisFromDate(record.deleted_at) : null,
         identityKey: record.identity_key,
         syncStatus: 'synced',
@@ -387,6 +389,7 @@ function mergeForCloud(base, incoming) {
         output.manualMediaType = next.manualMediaType ?? null;
         output.manualSeason = next.manualSeason ?? null;
         output.manualEpisode = next.manualEpisode ?? null;
+        output.manualGroupTitle = next.manualGroupTitle ?? null;
         output.deletedAt = next.deletedAt ?? null;
     }
     output.url = next.url || output.url;
@@ -813,6 +816,7 @@ function mergeIntoRecord(base, incoming) {
         base.manualMediaType = incoming.manualMediaType ?? null;
         base.manualSeason = incoming.manualSeason ?? null;
         base.manualEpisode = incoming.manualEpisode ?? null;
+        base.manualGroupTitle = incoming.manualGroupTitle ?? null;
         base.deletedAt = incoming.deletedAt ?? null;
     }
     base.url = incoming.url;
@@ -863,6 +867,10 @@ function normalizeRecordPatch(patch) {
     if ('manualEpisode' in patch) {
         const episode = patch.manualEpisode;
         next.manualEpisode = typeof episode === 'number' && Number.isFinite(episode) ? Math.max(0, episode) : null;
+    }
+    if ('manualGroupTitle' in patch) {
+        const value = typeof patch.manualGroupTitle === 'string' ? patch.manualGroupTitle.trim() : '';
+        next.manualGroupTitle = value || null;
     }
     return next;
 }

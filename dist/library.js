@@ -13,10 +13,13 @@ const cancelEditBtn = document.getElementById('cancelEditBtn');
 const resetManualBtn = document.getElementById('resetManualBtn');
 const titleInput = document.getElementById('titleInput');
 const mediaTypeInput = document.getElementById('mediaTypeInput');
+const groupInput = document.getElementById('groupInput');
+const groupNameOptions = document.getElementById('groupNameOptions');
 const seasonInput = document.getElementById('seasonInput');
 const episodeInput = document.getElementById('episodeInput');
 let allRecords = [];
 let editorMode = null;
+const expandedGroupKeys = new Set();
 function displayTitle(record) {
     return record.manualTitle || record.title || record.rawTitle || record.url;
 }
@@ -28,6 +31,10 @@ function displaySeason(record) {
 }
 function displayEpisode(record) {
     return record.manualEpisode ?? record.episode ?? null;
+}
+function displayGroupTitle(record) {
+    const title = record.manualGroupTitle?.trim();
+    return title || null;
 }
 function normalizeText(value) {
     return value.trim().toLowerCase();
@@ -97,12 +104,27 @@ function getFilteredRecords() {
     })
         .sort((a, b) => b.startedAt - a.startedAt);
 }
+function getGroupTitle(record) {
+    const customTitle = displayGroupTitle(record);
+    if (customTitle) {
+        return { title: customTitle, custom: true };
+    }
+    if (displaySeason(record) === null) {
+        return null;
+    }
+    return { title: inferGroupTitle(record), custom: false };
+}
 function groupRecords(records) {
     const byKey = new Map();
+    const singles = [];
     for (const record of records) {
         const mediaType = displayMediaType(record);
-        const title = inferGroupTitle(record);
-        const key = `${mediaType}:${normalizeText(title)}`;
+        const groupInfo = getGroupTitle(record);
+        if (!groupInfo) {
+            singles.push(record);
+            continue;
+        }
+        const key = `${groupInfo.custom ? 'custom' : mediaType}:${normalizeText(groupInfo.title)}`;
         const existing = byKey.get(key);
         if (existing) {
             existing.records.push(record);
@@ -111,14 +133,18 @@ function groupRecords(records) {
         else {
             byKey.set(key, {
                 key,
-                title,
+                title: groupInfo.title,
                 mediaType,
+                custom: groupInfo.custom,
                 latestAt: record.startedAt,
                 records: [record]
             });
         }
     }
-    return [...byKey.values()].sort((a, b) => b.latestAt - a.latestAt);
+    return {
+        groups: [...byKey.values()].sort((a, b) => b.latestAt - a.latestAt),
+        singles
+    };
 }
 function groupedBySeason(records) {
     const bySeason = new Map();
@@ -171,19 +197,56 @@ function renderRecord(record) {
     });
     return node;
 }
+function formatGroupMeta(group) {
+    const seasons = [...new Set(group.records.map(displaySeason).filter((season) => season !== null))]
+        .sort((a, b) => a - b);
+    const seasonLabel = seasons.length === 0
+        ? 'Custom group'
+        : seasons.length === 1
+            ? `Season ${seasons[0]}`
+            : `Seasons ${seasons.join(', ')}`;
+    return `${seasonLabel} · ${group.records.length} records · latest ${formatDate(group.latestAt)}`;
+}
+function renderSingleSection(records) {
+    const section = document.createElement('section');
+    section.className = 'single-section';
+    const heading = document.createElement('h2');
+    heading.className = 'section-heading';
+    heading.textContent = 'Ungrouped';
+    section.append(heading);
+    for (const record of records) {
+        section.append(renderRecord(record));
+    }
+    return section;
+}
 function renderGroup(group) {
     const node = groupTemplate.content.firstElementChild?.cloneNode(true);
     const badge = node.querySelector('.badge');
     const title = node.querySelector('h2');
     const meta = node.querySelector('.group-meta');
     const editBtn = node.querySelector('.edit-group-btn');
+    const toggleBtn = node.querySelector('.toggle-group-btn');
     const deleteBtn = node.querySelector('.delete-group-btn');
     const seasonList = node.querySelector('.season-list');
+    const isExpanded = expandedGroupKeys.has(group.key);
     badge.textContent = group.mediaType.toUpperCase();
     badge.classList.add(group.mediaType);
     title.textContent = group.title;
-    meta.textContent = `${group.records.length} records · latest ${formatDate(group.latestAt)}`;
+    meta.textContent = formatGroupMeta(group);
+    node.classList.toggle('expanded', isExpanded);
+    seasonList.hidden = !isExpanded;
+    toggleBtn.setAttribute('aria-expanded', String(isExpanded));
+    toggleBtn.title = isExpanded ? 'Hide episodes' : 'Show episodes';
     editBtn.addEventListener('click', () => openGroupEditor(group));
+    toggleBtn.addEventListener('click', () => {
+        if (expandedGroupKeys.has(group.key)) {
+            expandedGroupKeys.delete(group.key);
+        }
+        else {
+            expandedGroupKeys.add(group.key);
+        }
+        render();
+    });
     deleteBtn.addEventListener('click', () => {
         void deleteGroup(group);
     });
@@ -203,16 +266,40 @@ function renderGroup(group) {
 }
 function render() {
     const records = getFilteredRecords();
-    const groups = groupRecords(records);
+    const { groups, singles } = groupRecords(records);
     groupsEl.textContent = '';
     if (records.length === 0) {
         statusTextEl.textContent = allRecords.length === 0 ? 'No tracked records yet.' : 'No records match these filters.';
         return;
     }
-    statusTextEl.textContent = `${records.length} records in ${groups.length} groups`;
+    statusTextEl.textContent = `${records.length} records · ${groups.length} groups · ${singles.length} ungrouped`;
     const fragment = document.createDocumentFragment();
+    const entries = [
+        ...groups.map((group) => ({ type: 'group', latestAt: group.latestAt, group })),
+        ...singles.map((record) => ({ type: 'single', latestAt: record.startedAt, record }))
+    ].sort((a, b) => b.latestAt - a.latestAt);
+    let pendingSingles = [];
+    const flushSingles = () => {
+        if (pendingSingles.length === 0) {
+            return;
+        }
+        fragment.append(renderSingleSection(pendingSingles));
+        pendingSingles = [];
+    };
+    for (const entry of entries) {
+        if (entry.type === 'single') {
+            pendingSingles.push(entry.record);
+            continue;
+        }
+        flushSingles();
+        fragment.append(renderGroup(entry.group));
+    }
+    flushSingles();
+    groupNameOptions.textContent = '';
     for (const group of groups) {
-        fragment.append(renderGroup(group));
+        const option = document.createElement('option');
+        option.value = group.title;
+        groupNameOptions.append(option);
     }
     groupsEl.append(fragment);
 }
@@ -223,40 +310,49 @@ function parseNumberInput(input) {
     const value = Number(input.value);
     return Number.isFinite(value) ? Math.max(0, Math.round(value)) : null;
 }
-function setDialogValues(title, mediaType, season, episode) {
+function setDialogValues(title, mediaType, groupTitle, season, episode) {
     titleInput.value = title;
     mediaTypeInput.value = mediaType;
+    groupInput.value = groupTitle ?? '';
     seasonInput.value = season === null ? '' : String(season);
     episodeInput.value = episode === null ? '' : String(episode);
 }
 function openRecordEditor(record) {
     editorMode = { type: 'record', record };
     dialogTitle.textContent = 'Record';
-    dialogHint.textContent = 'Edits override auto-detection for this one record.';
-    setDialogValues(displayTitle(record), displayMediaType(record), displaySeason(record), displayEpisode(record));
+    dialogHint.textContent = 'Set Group to move this record into a custom group. Empty uses season auto-grouping only.';
+    setDialogValues(displayTitle(record), displayMediaType(record), displayGroupTitle(record), displaySeason(record), displayEpisode(record));
     editDialog.showModal();
 }
 function openGroupEditor(group) {
     editorMode = { type: 'group', group };
     dialogTitle.textContent = 'Group';
-    dialogHint.textContent = 'Group edits apply title and category to every record in this group. Season and episode stay per-record unless filled here.';
-    setDialogValues(group.title, group.mediaType, null, null);
+    dialogHint.textContent = 'Changing Group moves every item here into that custom group. Title changes are not applied to every episode.';
+    setDialogValues('', group.mediaType, group.title, null, null);
     editDialog.showModal();
 }
 async function updateRecord(record, reset = false) {
-    const patch = reset
+    let patch = reset
         ? {
             manualTitle: null,
             manualMediaType: null,
             manualSeason: null,
-            manualEpisode: null
+            manualEpisode: null,
+            manualGroupTitle: null
         }
         : {
             manualTitle: titleInput.value,
             manualMediaType: mediaTypeInput.value,
             manualSeason: parseNumberInput(seasonInput),
-            manualEpisode: parseNumberInput(episodeInput)
+            manualEpisode: parseNumberInput(episodeInput),
+            manualGroupTitle: groupInput.value
         };
+    if (!reset && editorMode?.type === 'group') {
+        patch = {
+            manualMediaType: mediaTypeInput.value,
+            manualGroupTitle: groupInput.value
+        };
+    }
     const response = (await chrome.runtime.sendMessage({
         type: 'updateRecord',
         id: record.id,

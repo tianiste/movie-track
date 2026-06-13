@@ -66,6 +66,7 @@ interface CloudWatchRecord {
   manual_media_type: MediaType | null;
   manual_season: number | null;
   manual_episode: number | null;
+  manual_group_title: string | null;
   deleted_at: string | null;
   identity_key: string;
   updated_at: string;
@@ -448,6 +449,7 @@ function toCloudRecord(record: WatchRecord, userId: string): Omit<CloudWatchReco
     manual_media_type: withIdentity.manualMediaType ?? null,
     manual_season: withIdentity.manualSeason ?? null,
     manual_episode: withIdentity.manualEpisode ?? null,
+    manual_group_title: withIdentity.manualGroupTitle ?? null,
     deleted_at: withIdentity.deletedAt ? dateFromMillis(withIdentity.deletedAt) : null,
     identity_key: withIdentity.identityKey as string
   };
@@ -474,6 +476,7 @@ function fromCloudRecord(record: CloudWatchRecord): WatchRecord {
     manualMediaType: record.manual_media_type,
     manualSeason: record.manual_season,
     manualEpisode: record.manual_episode,
+    manualGroupTitle: record.manual_group_title,
     deletedAt: record.deleted_at ? millisFromDate(record.deleted_at) : null,
     identityKey: record.identity_key,
     syncStatus: 'synced',
@@ -517,6 +520,7 @@ function mergeForCloud(base: WatchRecord, incoming: WatchRecord): WatchRecord {
     output.manualMediaType = next.manualMediaType ?? null;
     output.manualSeason = next.manualSeason ?? null;
     output.manualEpisode = next.manualEpisode ?? null;
+    output.manualGroupTitle = next.manualGroupTitle ?? null;
     output.deletedAt = next.deletedAt ?? null;
   }
 
@@ -1016,6 +1020,7 @@ function mergeIntoRecord(base: WatchRecord, incoming: WatchRecord): WatchRecord 
     base.manualMediaType = incoming.manualMediaType ?? null;
     base.manualSeason = incoming.manualSeason ?? null;
     base.manualEpisode = incoming.manualEpisode ?? null;
+    base.manualGroupTitle = incoming.manualGroupTitle ?? null;
     base.deletedAt = incoming.deletedAt ?? null;
   }
 
@@ -1056,7 +1061,7 @@ function compactHistory(history: WatchRecord[]): WatchRecord[] {
   return orderedKeys.map((key) => byKey.get(key) as WatchRecord);
 }
 
-type RecordPatch = Partial<Pick<WatchRecord, 'manualTitle' | 'manualMediaType' | 'manualSeason' | 'manualEpisode'>>;
+type RecordPatch = Partial<Pick<WatchRecord, 'manualTitle' | 'manualMediaType' | 'manualSeason' | 'manualEpisode' | 'manualGroupTitle'>>;
 
 function normalizeRecordPatch(patch: RecordPatch): RecordPatch {
   const next: RecordPatch = {};
@@ -1078,6 +1083,11 @@ function normalizeRecordPatch(patch: RecordPatch): RecordPatch {
   if ('manualEpisode' in patch) {
     const episode = patch.manualEpisode;
     next.manualEpisode = typeof episode === 'number' && Number.isFinite(episode) ? Math.max(0, episode) : null;
+  }
+
+  if ('manualGroupTitle' in patch) {
+    const value = typeof patch.manualGroupTitle === 'string' ? patch.manualGroupTitle.trim() : '';
+    next.manualGroupTitle = value || null;
   }
 
   return next;
