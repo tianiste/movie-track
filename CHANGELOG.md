@@ -2,6 +2,22 @@
 
 All notable changes to MovieTrack are documented here.
 
+## 0.1.2 - 2026-06-13
+
+### Added
+
+- Full Library page with editable records and groups.
+- Collapsible season/group views in popup and Library.
+- Custom Library groups with drag-and-drop moves.
+- Drag auto-scroll for long Library pages.
+- GitHub Release packaging workflow for `movietrack.zip`.
+
+### Fixed
+
+- Improved anime/YouTube recognition and season/episode display.
+- Fixed dragging records into auto-generated groups.
+- Allowed empty custom groups to be deleted.
+
 ## 0.1.1 - 2026-06-13
 
 ### Added
