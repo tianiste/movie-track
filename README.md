@@ -197,7 +197,7 @@ Read the full policy in [PRIVACY_POLICY.md](PRIVACY_POLICY.md). Public HTML poli
 - Improve season/episode parsing for more streaming site URL formats.
 - Add optional site allowlist mode for users who do not want all-site access.
 - Add Firefox/Edge install notes after manual compatibility testing.
-- Add release automation for tagged ZIP builds.
+- Improve release notes after tagged GitHub Release ZIP builds.
 
 ## Contributing
 

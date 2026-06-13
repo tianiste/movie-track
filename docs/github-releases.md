@@ -2,14 +2,28 @@
 
 Use this if you want a free distribution path instead of the Chrome Web Store.
 
-## Maintainer flow
+## Automatic maintainer flow
+
+Push a version tag and GitHub Actions will build, verify, and publish a release asset named `movietrack.zip`.
+
+```sh
+git tag v0.1.1
+git push origin v0.1.1
+```
+
+The workflow also uploads `movietrack.zip.sha256`.
+
+You can also run the **Release** workflow manually from GitHub Actions and provide a tag.
+
+## Manual maintainer flow
 
 1. Build the extension.
    - `npm run build`
 2. Package the release ZIP.
    - `npm run package:webstore`
-3. Upload `/tmp/movietrack-webstore.zip` to a GitHub Release.
-4. Add release notes with the version number and key changes.
+3. Rename `/tmp/movietrack-webstore.zip` to `movietrack.zip`.
+4. Upload `movietrack.zip` to a GitHub Release.
+5. Add release notes with the version number and key changes.
 
 ## User install flow
 

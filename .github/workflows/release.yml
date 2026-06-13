@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag, for example v0.1.1'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: Package extension
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and verify package
+        run: npm run verify:publish
+
+      - name: Prepare release files
+        run: |
+          cp /tmp/movietrack-webstore.zip movietrack.zip
+          sha256sum movietrack.zip > movietrack.zip.sha256
+
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" movietrack.zip movietrack.zip.sha256 --clobber
+          else
+            gh release create "$RELEASE_TAG" movietrack.zip movietrack.zip.sha256 \
+              --target "$GITHUB_SHA" \
+              --title "MovieTrack $RELEASE_TAG" \
+              --notes "Packaged MovieTrack extension release. Download movietrack.zip, unzip it, and load the folder as an unpacked extension."
+          fi
