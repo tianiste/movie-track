@@ -93,6 +93,7 @@ let isSignedIn = false;
 let hasPrivacyConsent = false;
 let hasHostAccess = false;
 let isFilterDrawerOpen = false;
+const expandedGroupKeys = new Set<string>();
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -297,6 +298,20 @@ function groupBySeason(items: DisplayRecord[]): Map<string, DisplayRecord[]> {
   return new Map([...bySeason.entries()].sort(([a], [b]) => a.localeCompare(b)));
 }
 
+function formatGroupSeasonSummary(group: PopupGroup): string {
+  const seasons = [...new Set(group.records.map((item) => item.season).filter((season): season is number => season !== null))]
+    .sort((a, b) => a - b);
+  const latest = [...group.records].sort((a, b) => b.record.startedAt - a.record.startedAt)[0];
+  const latestEpisode = latest?.episode !== null && latest?.episode !== undefined ? `latest E${latest.episode}` : '';
+  const seasonLabel = seasons.length === 0
+    ? 'No season'
+    : seasons.length === 1
+      ? `Season ${seasons[0]}`
+      : `Seasons ${seasons.join(', ')}`;
+
+  return [seasonLabel, latestEpisode, `${group.records.length} records`].filter(Boolean).join(' · ');
+}
+
 function setFilterDrawerOpen(open: boolean): void {
   isFilterDrawerOpen = open;
   filterDrawerEl.classList.toggle('open', open);
@@ -411,6 +426,8 @@ function renderRecordCard(item: DisplayRecord): HTMLElement {
 function renderSeasonGroup(group: PopupGroup): HTMLElement {
   const groupEl = document.createElement('article');
   groupEl.className = `popup-group ${group.mediaType}`;
+  const isExpanded = expandedGroupKeys.has(group.key);
+  groupEl.classList.toggle('expanded', isExpanded);
 
   const headerEl = document.createElement('header');
   headerEl.className = 'popup-group-header';
@@ -428,11 +445,35 @@ function renderSeasonGroup(group: PopupGroup): HTMLElement {
 
   const metaEl = document.createElement('p');
   metaEl.className = 'popup-group-meta';
-  metaEl.textContent = `${group.records.length} records`;
+  metaEl.textContent = formatGroupSeasonSummary(group);
 
   headingWrap.append(titleEl, metaEl);
-  headerEl.append(badgeEl, headingWrap);
+  const expandBtn = document.createElement('button');
+  expandBtn.className = 'icon-btn popup-group-toggle';
+  expandBtn.type = 'button';
+  expandBtn.setAttribute('aria-expanded', String(isExpanded));
+  expandBtn.title = isExpanded ? 'Collapse episodes' : 'Show episodes';
+
+  const expandIcon = document.createElement('span');
+  expandIcon.className = 'material-symbols-outlined';
+  expandIcon.textContent = 'expand_more';
+  expandBtn.append(expandIcon);
+
+  expandBtn.addEventListener('click', () => {
+    if (expandedGroupKeys.has(group.key)) {
+      expandedGroupKeys.delete(group.key);
+    } else {
+      expandedGroupKeys.add(group.key);
+    }
+    render();
+  });
+
+  headerEl.append(badgeEl, headingWrap, expandBtn);
   groupEl.append(headerEl);
+
+  const bodyEl = document.createElement('div');
+  bodyEl.className = 'popup-group-body';
+  bodyEl.hidden = !isExpanded;
 
   for (const [seasonKey, seasonRecords] of groupBySeason(group.records)) {
     const seasonEl = document.createElement('section');
@@ -447,9 +488,10 @@ function renderSeasonGroup(group: PopupGroup): HTMLElement {
       seasonEl.append(renderRecordCard(item));
     }
 
-    groupEl.append(seasonEl);
+    bodyEl.append(seasonEl);
   }
 
+  groupEl.append(bodyEl);
   return groupEl;
 }
 

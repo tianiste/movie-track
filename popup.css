@@ -566,6 +566,35 @@ h1, h2, h3, h4 {
   font-size: 10px;
 }
 
+.popup-group-toggle {
+  margin-left: auto;
+  flex: 0 0 auto;
+  background: rgba(199, 153, 255, 0.1);
+  color: var(--primary);
+  border-radius: 999px;
+  width: 30px;
+  height: 30px;
+}
+
+.popup-group-toggle .material-symbols-outlined {
+  font-size: 18px;
+  transition: transform 0.2s ease;
+}
+
+.popup-group.expanded .popup-group-toggle .material-symbols-outlined {
+  transform: rotate(180deg);
+}
+
+.popup-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.popup-group-body[hidden] {
+  display: none;
+}
+
 .popup-season {
   display: flex;
   flex-direction: column;
