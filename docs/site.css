@@ -402,6 +402,37 @@ pre {
   box-shadow: var(--shadow);
 }
 
+.feature-showcase {
+  display: grid;
+  gap: 18px;
+}
+
+.shot-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.shot-grid img,
+.feature-showcase img {
+  width: 100%;
+  display: block;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: var(--shadow);
+  background: var(--surface);
+}
+
+.shot-grid.two-up {
+  align-items: start;
+}
+
+.wide-shot {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
 .footer {
   padding: 48px 0;
   color: var(--muted);
@@ -457,7 +488,8 @@ pre {
 
   .grid,
   .site-list,
-  .oss-band {
+  .oss-band,
+  .shot-grid {
     grid-template-columns: 1fr;
   }
 
