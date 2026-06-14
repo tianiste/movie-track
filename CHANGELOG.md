@@ -2,6 +2,13 @@
 
 All notable changes to MovieTrack are documented here.
 
+## 0.1.4 - 2026-06-14
+
+### Fixed
+
+- Removed the local development `key` field from `manifest.json` so Chrome Web Store accepts the package upload.
+- Added publish checks to reject future Web Store packages that include `manifest.key`.
+
 ## 0.1.3 - 2026-06-14
 
 ### Added

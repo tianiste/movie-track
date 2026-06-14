@@ -155,6 +155,9 @@ for (const file of files.filter((entry) => /\.(?:js|html|css|json)$/i.test(entry
 }
 
 const manifest = JSON.parse(readZipEntry(zip, 'manifest.json'));
+if ('key' in manifest) {
+  fail('manifest must not include key; Chrome Web Store rejects it');
+}
 if (manifest.host_permissions?.includes('<all_urls>')) {
   fail('manifest must not require <all_urls>; use optional_host_permissions');
 }

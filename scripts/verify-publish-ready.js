@@ -102,6 +102,9 @@ for (const file of sourceGlobs) {
 }
 
 const manifest = readJson('manifest.json');
+if ('key' in manifest) {
+  fail('manifest must not include key; Chrome Web Store rejects it');
+}
 if (manifest.options_page !== 'options.html') {
   fail('manifest must expose options.html as the settings page');
 }
