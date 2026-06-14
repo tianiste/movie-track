@@ -5,7 +5,11 @@ const HEARTBEAT_ALARM = 'heartbeat';
 const AUTH_SESSION_KEY = 'supabaseAuthSession';
 const PRIVACY_CONSENT_KEY = 'privacyConsentAccepted';
 const REQUIRED_HOST_PERMISSION = '<all_urls>';
-const MIN_DURATION_SEC = 5;
+const MIN_DURATION_SEC = 10;
+const MEANINGFUL_PLAYBACK_SEC = 30;
+const COMPLETE_RATIO = 0.9;
+const COMPLETE_NEAR_END_RATIO = 0.85;
+const COMPLETE_NEAR_END_SEC = 60;
 const MERGE_GAP_MS = 5 * 60 * 1000;
 const HEARTBEAT_MINUTES = 0.08;
 async function restorePlaybackInTab(tabId, resumeAtSec) {
@@ -727,6 +731,34 @@ function buildRecord(session) {
         videoDurationSec: session.videoDurationSec ?? null
     };
 }
+function getWatchRatio(record) {
+    const watched = record.lastPlaybackTime ?? 0;
+    const duration = record.videoDurationSec ?? 0;
+    if (!Number.isFinite(watched) || !Number.isFinite(duration) || duration <= 0) {
+        return null;
+    }
+    return Math.max(0, Math.min(1, watched / duration));
+}
+function isRecordComplete(record) {
+    const ratio = getWatchRatio(record);
+    const watched = record.lastPlaybackTime ?? 0;
+    const duration = record.videoDurationSec ?? 0;
+    if (ratio === null || duration < MEANINGFUL_PLAYBACK_SEC || watched <= 0) {
+        return false;
+    }
+    const remainingSec = Math.max(0, duration - watched);
+    return ratio >= COMPLETE_RATIO || (ratio >= COMPLETE_NEAR_END_RATIO && remainingSec <= COMPLETE_NEAR_END_SEC);
+}
+function shouldSaveRecord(record) {
+    if (isRecordComplete(record)) {
+        return true;
+    }
+    const playbackTime = record.lastPlaybackTime ?? 0;
+    if (record.durationSec >= MIN_DURATION_SEC) {
+        return true;
+    }
+    return playbackTime >= MEANINGFUL_PLAYBACK_SEC;
+}
 async function getVideoPlaybackInfo(tabId) {
     try {
         const injections = await chrome.scripting.executeScript({
@@ -970,8 +1002,8 @@ async function refreshHistoryFromCloud() {
     return merged;
 }
 async function saveRecord(record) {
-    if (record.durationSec < MIN_DURATION_SEC) {
-        console.debug(`[MovieTrack] Skipped record (${record.durationSec}s < ${MIN_DURATION_SEC}s):`, record.title);
+    if (!shouldSaveRecord(record)) {
+        console.debug(`[MovieTrack] Skipped short record (${record.durationSec}s):`, record.title);
         return;
     }
     console.debug(`[MovieTrack] Saving record (${record.durationSec}s):`, record.title);

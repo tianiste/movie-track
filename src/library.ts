@@ -146,11 +146,32 @@ function formatSeasonHeading(season: number | null): string {
   return season === null ? 'No season' : `Season ${season}`;
 }
 
+function getWatchRatio(record: WatchRecord): number | null {
+  const watched = record.lastPlaybackTime ?? 0;
+  const duration = record.videoDurationSec ?? 0;
+  if (!Number.isFinite(watched) || !Number.isFinite(duration) || duration <= 0) {
+    return null;
+  }
+  return Math.max(0, Math.min(1, watched / duration));
+}
+
+function isRecordComplete(record: WatchRecord): boolean {
+  const ratio = getWatchRatio(record);
+  const watched = record.lastPlaybackTime ?? 0;
+  const duration = record.videoDurationSec ?? 0;
+  if (ratio === null || duration < 30 || watched <= 0) {
+    return false;
+  }
+
+  const remainingSec = Math.max(0, duration - watched);
+  return ratio >= 0.9 || (ratio >= 0.85 && remainingSec <= 60);
+}
+
 function recordMeta(record: WatchRecord): string[] {
   const season = displaySeason(record);
   const episode = displayEpisode(record);
   const meta = [
-    formatDuration(record.lastPlaybackTime ?? record.durationSec),
+    isRecordComplete(record) ? 'Finished' : formatDuration(record.lastPlaybackTime ?? record.durationSec),
     formatDate(record.startedAt),
     record.syncStatus === 'failed' ? 'Sync failed' : ''
   ];
@@ -448,10 +469,11 @@ function renderRecord(record: WatchRecord): HTMLElement {
   meta.textContent = recordMeta(record).join(' · ');
 
   openBtn.addEventListener('click', () => {
+    const resumeAtSec = isRecordComplete(record) ? 0 : record.lastPlaybackTime ?? 0;
     void chrome.runtime.sendMessage({
       type: 'openWithResume',
       url: record.url,
-      resumeAtSec: record.lastPlaybackTime ?? 0
+      resumeAtSec
     });
   });
   editBtn.addEventListener('click', () => openRecordEditor(record));

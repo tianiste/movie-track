@@ -70,6 +70,24 @@ function formatEpisodeNumberLabel(episode) {
     }
     return `E${episode}`;
 }
+function getWatchRatio(record) {
+    const watched = record.lastPlaybackTime ?? 0;
+    const duration = record.videoDurationSec ?? 0;
+    if (!Number.isFinite(watched) || !Number.isFinite(duration) || duration <= 0) {
+        return null;
+    }
+    return Math.max(0, Math.min(1, watched / duration));
+}
+function isRecordComplete(record) {
+    const ratio = getWatchRatio(record);
+    const watched = record.lastPlaybackTime ?? 0;
+    const duration = record.videoDurationSec ?? 0;
+    if (ratio === null || duration < 30 || watched <= 0) {
+        return false;
+    }
+    const remainingSec = Math.max(0, duration - watched);
+    return ratio >= 0.9 || (ratio >= 0.85 && remainingSec <= 60);
+}
 function parseSeasonHint(text) {
     const seasonPatterns = [
         /\b(?:season|series|seas)\s*[:#._\-/]?\s*(\d{1,2})(?:st|nd|rd|th)?\b/i,
@@ -290,18 +308,19 @@ function renderRecordCard(item) {
     const mediaType = item.mediaType;
     const watchedSeconds = Math.max(0, record.lastPlaybackTime ?? 0);
     const videoDurationSec = (record.videoDurationSec ?? 0) > 0 ? record.videoDurationSec : null;
+    const isComplete = isRecordComplete(record);
     badgeEl.textContent = mediaType.toUpperCase();
     badgeEl.className = `badge ${mediaType}`;
     titleEl.textContent = item.title;
     urlEl.textContent = (record.hostname || record.url).substring(0, 40);
     linkEl.href = record.url;
-    linkEl.title = watchedSeconds > 0 ? `Continue from ${formatDuration(watchedSeconds)}` : 'Open';
+    linkEl.title = isComplete ? 'Open from start' : watchedSeconds > 0 ? `Continue from ${formatDuration(watchedSeconds)}` : 'Open';
     linkEl.addEventListener('click', (event) => {
         event.preventDefault();
         void chrome.runtime.sendMessage({
             type: 'openWithResume',
             url: record.url,
-            resumeAtSec: watchedSeconds
+            resumeAtSec: isComplete ? 0 : watchedSeconds
         });
     });
     deleteBtn.addEventListener('click', () => {
@@ -314,7 +333,7 @@ function renderRecordCard(item) {
     const metaItems = metaContainer.querySelectorAll('.meta-item');
     if (metaItems[0]) {
         const metaText = metaItems[0].querySelector('.meta-text');
-        metaText.textContent = `${watchedSeconds > 0 ? formatDuration(watchedSeconds) : '—'} elapsed`;
+        metaText.textContent = isComplete ? 'Finished' : `${watchedSeconds > 0 ? formatDuration(watchedSeconds) : '—'} elapsed`;
     }
     if (metaItems[1]) {
         const metaText = metaItems[1].querySelector('.meta-text');
@@ -337,11 +356,14 @@ function renderRecordCard(item) {
         metaItem.hidden = !episodeLabel;
         metaText.textContent = episodeLabel;
     }
-    const progressPercent = videoDurationSec
-        ? Math.min(100, Math.round((watchedSeconds / videoDurationSec) * 100))
-        : 0;
+    const progressPercent = isComplete
+        ? 100
+        : videoDurationSec
+            ? Math.min(100, Math.round((watchedSeconds / videoDurationSec) * 100))
+            : 0;
     progressBar.style.width = progressPercent + '%';
     node.classList.add(mediaType);
+    node.classList.toggle('complete', isComplete);
     return node;
 }
 function renderSeasonGroup(group) {
