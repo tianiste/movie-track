@@ -292,6 +292,16 @@ select {
   text-transform: uppercase;
 }
 
+.load-more-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 2px 0 8px;
+}
+
+.load-more-btn {
+  width: min(260px, 100%);
+}
+
 .section-heading {
   color: var(--on-surface-variant);
   font-size: 12px;

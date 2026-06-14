@@ -1,4 +1,5 @@
 type SyncStatus = 'pending' | 'syncing' | 'synced' | 'failed';
+const POPUP_PAGE_SIZE = 20;
 
 interface WatchRecord {
   id: string;
@@ -94,6 +95,7 @@ let hasPrivacyConsent = false;
 let hasHostAccess = false;
 let isFilterDrawerOpen = false;
 const expandedGroupKeys = new Set<string>();
+let visibleEntryCount = POPUP_PAGE_SIZE;
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -475,24 +477,38 @@ function renderSeasonGroup(group: PopupGroup): HTMLElement {
   bodyEl.className = 'popup-group-body';
   bodyEl.hidden = !isExpanded;
 
-  for (const [seasonKey, seasonRecords] of groupBySeason(group.records)) {
-    const seasonEl = document.createElement('section');
-    seasonEl.className = 'popup-season';
+  if (isExpanded) {
+    for (const [seasonKey, seasonRecords] of groupBySeason(group.records)) {
+      const seasonEl = document.createElement('section');
+      seasonEl.className = 'popup-season';
 
-    const seasonTitle = document.createElement('p');
-    seasonTitle.className = 'popup-season-title';
-    seasonTitle.textContent = seasonKey === 'unknown' ? 'No season' : `Season ${Number(seasonKey)}`;
-    seasonEl.append(seasonTitle);
+      const seasonTitle = document.createElement('p');
+      seasonTitle.className = 'popup-season-title';
+      seasonTitle.textContent = seasonKey === 'unknown' ? 'No season' : `Season ${Number(seasonKey)}`;
+      seasonEl.append(seasonTitle);
 
-    for (const item of seasonRecords) {
-      seasonEl.append(renderRecordCard(item));
+      for (const item of seasonRecords) {
+        seasonEl.append(renderRecordCard(item));
+      }
+
+      bodyEl.append(seasonEl);
     }
-
-    bodyEl.append(seasonEl);
   }
 
   groupEl.append(bodyEl);
   return groupEl;
+}
+
+function renderLoadMore(remainingCount: number): HTMLElement {
+  const button = document.createElement('button');
+  button.className = 'load-more-btn';
+  button.type = 'button';
+  button.textContent = `Load more (${remainingCount} left)`;
+  button.addEventListener('click', () => {
+    visibleEntryCount += POPUP_PAGE_SIZE;
+    render();
+  });
+  return button;
 }
 
 function render(): void {
@@ -519,14 +535,23 @@ function render(): void {
     ...groups.map((group) => ({ type: 'group' as const, latestAt: group.latestAt, group })),
     ...singles.map((item) => ({ type: 'single' as const, latestAt: item.record.startedAt, item }))
   ].sort((a, b) => b.latestAt - a.latestAt);
+  const visibleEntries = entries.slice(0, visibleEntryCount);
+  const remainingEntries = entries.length - visibleEntries.length;
 
   const fragment = document.createDocumentFragment();
 
-  for (const entry of entries) {
+  for (const entry of visibleEntries) {
     fragment.append(entry.type === 'group' ? renderSeasonGroup(entry.group) : renderRecordCard(entry.item));
+  }
+  if (remainingEntries > 0) {
+    fragment.append(renderLoadMore(remainingEntries));
   }
 
   listEl.append(fragment);
+}
+
+function resetPagination(): void {
+  visibleEntryCount = POPUP_PAGE_SIZE;
 }
 
 function renderSyncSummary(): void {
@@ -674,9 +699,18 @@ async function loadAuthStatus(): Promise<void> {
   setAuthUiState(response);
 }
 
-filterEl.addEventListener('change', render);
-searchFilterEl.addEventListener('input', render);
-dateFilterEl.addEventListener('change', render);
+filterEl.addEventListener('change', () => {
+  resetPagination();
+  render();
+});
+searchFilterEl.addEventListener('input', () => {
+  resetPagination();
+  render();
+});
+dateFilterEl.addEventListener('change', () => {
+  resetPagination();
+  render();
+});
 filtersToggleBtn.addEventListener('click', () => {
   setFilterDrawerOpen(!isFilterDrawerOpen);
 });

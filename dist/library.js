@@ -1,5 +1,6 @@
 const CUSTOM_GROUPS_KEY = 'libraryCustomGroups';
 const UNGROUPED_GROUP_TITLE = '__movietrack_ungrouped__';
+const PAGE_SIZE = 30;
 const groupsEl = document.getElementById('groups');
 const statusTextEl = document.getElementById('statusText');
 const groupTemplate = document.getElementById('groupTemplate');
@@ -32,6 +33,7 @@ const expandedGroupKeys = new Set();
 let draggedRecordId = null;
 let dragScrollSpeed = 0;
 let dragScrollFrame = null;
+let visibleEntryCount = PAGE_SIZE;
 function displayTitle(record) {
     return record.manualTitle || record.title || record.rawTitle || record.url;
 }
@@ -389,6 +391,20 @@ function renderUngroupDropZone() {
     dropZone.textContent = 'Drop here to remove from groups';
     return dropZone;
 }
+function renderLoadMore(remainingCount) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'load-more-wrap';
+    const button = document.createElement('button');
+    button.className = 'action-btn load-more-btn';
+    button.type = 'button';
+    button.textContent = `Load more (${remainingCount} left)`;
+    button.addEventListener('click', () => {
+        visibleEntryCount += PAGE_SIZE;
+        render();
+    });
+    wrapper.append(button);
+    return wrapper;
+}
 function renderGroup(group) {
     const node = groupTemplate.content.firstElementChild?.cloneNode(true);
     const badge = node.querySelector('.badge');
@@ -423,17 +439,19 @@ function renderGroup(group) {
     deleteBtn.addEventListener('click', () => {
         void deleteGroup(group);
     });
-    for (const [seasonKey, records] of groupedBySeason(group.records)) {
-        const seasonBlock = document.createElement('section');
-        seasonBlock.className = 'season-block';
-        const heading = document.createElement('h3');
-        heading.className = 'season-heading';
-        heading.textContent = formatSeasonHeading(seasonKey === 'unknown' ? null : Number(seasonKey));
-        seasonBlock.append(heading);
-        for (const record of records) {
-            seasonBlock.append(renderRecord(record));
+    if (isExpanded) {
+        for (const [seasonKey, records] of groupedBySeason(group.records)) {
+            const seasonBlock = document.createElement('section');
+            seasonBlock.className = 'season-block';
+            const heading = document.createElement('h3');
+            heading.className = 'season-heading';
+            heading.textContent = formatSeasonHeading(seasonKey === 'unknown' ? null : Number(seasonKey));
+            seasonBlock.append(heading);
+            for (const record of records) {
+                seasonBlock.append(renderRecord(record));
+            }
+            seasonList.append(seasonBlock);
         }
-        seasonList.append(seasonBlock);
     }
     return node;
 }
@@ -445,13 +463,20 @@ function render() {
         statusTextEl.textContent = allRecords.length === 0 ? 'No tracked records yet.' : 'No records match these filters.';
         return;
     }
-    statusTextEl.textContent = `${records.length} records · ${groups.length} groups · ${singles.length} ungrouped`;
     const fragment = document.createDocumentFragment();
     fragment.append(renderUngroupDropZone());
     const entries = [
         ...groups.map((group) => ({ type: 'group', latestAt: group.latestAt, group })),
         ...singles.map((record) => ({ type: 'single', latestAt: record.startedAt, record }))
     ].sort((a, b) => b.latestAt - a.latestAt);
+    const visibleEntries = entries.slice(0, visibleEntryCount);
+    const remainingEntries = entries.length - visibleEntries.length;
+    statusTextEl.textContent = [
+        `${records.length} records`,
+        `${groups.length} groups`,
+        `${singles.length} ungrouped`,
+        remainingEntries > 0 ? `showing ${visibleEntries.length} of ${entries.length}` : ''
+    ].filter(Boolean).join(' · ');
     let pendingSingles = [];
     const flushSingles = () => {
         if (pendingSingles.length === 0) {
@@ -460,7 +485,7 @@ function render() {
         fragment.append(renderSingleSection(pendingSingles));
         pendingSingles = [];
     };
-    for (const entry of entries) {
+    for (const entry of visibleEntries) {
         if (entry.type === 'single') {
             pendingSingles.push(entry.record);
             continue;
@@ -469,6 +494,9 @@ function render() {
         fragment.append(renderGroup(entry.group));
     }
     flushSingles();
+    if (remainingEntries > 0) {
+        fragment.append(renderLoadMore(remainingEntries));
+    }
     groupNameOptions.textContent = '';
     for (const group of groups) {
         const option = document.createElement('option');
@@ -476,6 +504,9 @@ function render() {
         groupNameOptions.append(option);
     }
     groupsEl.append(fragment);
+}
+function resetPagination() {
+    visibleEntryCount = PAGE_SIZE;
 }
 function parseNumberInput(input) {
     if (!input.value.trim()) {
@@ -601,8 +632,14 @@ async function deleteGroup(group) {
     }
     render();
 }
-searchInput.addEventListener('input', render);
-typeFilter.addEventListener('change', render);
+searchInput.addEventListener('input', () => {
+    resetPagination();
+    render();
+});
+typeFilter.addEventListener('change', () => {
+    resetPagination();
+    render();
+});
 newGroupBtn.addEventListener('click', () => {
     newGroupNameInput.value = '';
     newGroupTypeInput.value = typeFilter.value === 'all' ? 'anime' : typeFilter.value;

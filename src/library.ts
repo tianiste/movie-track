@@ -2,6 +2,7 @@ type MediaType = 'anime' | 'movie' | 'youtube' | 'unknown';
 type SyncStatus = 'pending' | 'syncing' | 'synced' | 'failed';
 const CUSTOM_GROUPS_KEY = 'libraryCustomGroups';
 const UNGROUPED_GROUP_TITLE = '__movietrack_ungrouped__';
+const PAGE_SIZE = 30;
 
 interface WatchRecord {
   id: string;
@@ -77,6 +78,7 @@ const expandedGroupKeys = new Set<string>();
 let draggedRecordId: string | null = null;
 let dragScrollSpeed = 0;
 let dragScrollFrame: number | null = null;
+let visibleEntryCount = PAGE_SIZE;
 
 function displayTitle(record: WatchRecord): string {
   return record.manualTitle || record.title || record.rawTitle || record.url;
@@ -497,6 +499,23 @@ function renderUngroupDropZone(): HTMLElement {
   return dropZone;
 }
 
+function renderLoadMore(remainingCount: number): HTMLElement {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'load-more-wrap';
+
+  const button = document.createElement('button');
+  button.className = 'action-btn load-more-btn';
+  button.type = 'button';
+  button.textContent = `Load more (${remainingCount} left)`;
+  button.addEventListener('click', () => {
+    visibleEntryCount += PAGE_SIZE;
+    render();
+  });
+
+  wrapper.append(button);
+  return wrapper;
+}
+
 function renderGroup(group: WatchGroup): HTMLElement {
   const node = groupTemplate.content.firstElementChild?.cloneNode(true) as HTMLElement;
   const badge = node.querySelector('.badge') as HTMLElement;
@@ -533,20 +552,22 @@ function renderGroup(group: WatchGroup): HTMLElement {
     void deleteGroup(group);
   });
 
-  for (const [seasonKey, records] of groupedBySeason(group.records)) {
-    const seasonBlock = document.createElement('section');
-    seasonBlock.className = 'season-block';
+  if (isExpanded) {
+    for (const [seasonKey, records] of groupedBySeason(group.records)) {
+      const seasonBlock = document.createElement('section');
+      seasonBlock.className = 'season-block';
 
-    const heading = document.createElement('h3');
-    heading.className = 'season-heading';
-    heading.textContent = formatSeasonHeading(seasonKey === 'unknown' ? null : Number(seasonKey));
-    seasonBlock.append(heading);
+      const heading = document.createElement('h3');
+      heading.className = 'season-heading';
+      heading.textContent = formatSeasonHeading(seasonKey === 'unknown' ? null : Number(seasonKey));
+      seasonBlock.append(heading);
 
-    for (const record of records) {
-      seasonBlock.append(renderRecord(record));
+      for (const record of records) {
+        seasonBlock.append(renderRecord(record));
+      }
+
+      seasonList.append(seasonBlock);
     }
-
-    seasonList.append(seasonBlock);
   }
 
   return node;
@@ -562,14 +583,21 @@ function render(): void {
     return;
   }
 
-  statusTextEl.textContent = `${records.length} records · ${groups.length} groups · ${singles.length} ungrouped`;
-
   const fragment = document.createDocumentFragment();
   fragment.append(renderUngroupDropZone());
   const entries = [
     ...groups.map((group) => ({ type: 'group' as const, latestAt: group.latestAt, group })),
     ...singles.map((record) => ({ type: 'single' as const, latestAt: record.startedAt, record }))
   ].sort((a, b) => b.latestAt - a.latestAt);
+  const visibleEntries = entries.slice(0, visibleEntryCount);
+  const remainingEntries = entries.length - visibleEntries.length;
+
+  statusTextEl.textContent = [
+    `${records.length} records`,
+    `${groups.length} groups`,
+    `${singles.length} ungrouped`,
+    remainingEntries > 0 ? `showing ${visibleEntries.length} of ${entries.length}` : ''
+  ].filter(Boolean).join(' · ');
 
   let pendingSingles: WatchRecord[] = [];
   const flushSingles = (): void => {
@@ -580,7 +608,7 @@ function render(): void {
     pendingSingles = [];
   };
 
-  for (const entry of entries) {
+  for (const entry of visibleEntries) {
     if (entry.type === 'single') {
       pendingSingles.push(entry.record);
       continue;
@@ -590,6 +618,9 @@ function render(): void {
     fragment.append(renderGroup(entry.group));
   }
   flushSingles();
+  if (remainingEntries > 0) {
+    fragment.append(renderLoadMore(remainingEntries));
+  }
 
   groupNameOptions.textContent = '';
   for (const group of groups) {
@@ -599,6 +630,10 @@ function render(): void {
   }
 
   groupsEl.append(fragment);
+}
+
+function resetPagination(): void {
+  visibleEntryCount = PAGE_SIZE;
 }
 
 function parseNumberInput(input: HTMLInputElement): number | null {
@@ -744,8 +779,14 @@ async function deleteGroup(group: WatchGroup): Promise<void> {
   render();
 }
 
-searchInput.addEventListener('input', render);
-typeFilter.addEventListener('change', render);
+searchInput.addEventListener('input', () => {
+  resetPagination();
+  render();
+});
+typeFilter.addEventListener('change', () => {
+  resetPagination();
+  render();
+});
 newGroupBtn.addEventListener('click', () => {
   newGroupNameInput.value = '';
   newGroupTypeInput.value = typeFilter.value === 'all' ? 'anime' : typeFilter.value;
