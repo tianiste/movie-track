@@ -51,6 +51,7 @@ interface GetHistoryResponse {
   history: WatchRecord[];
   enabled: boolean;
   total?: number;
+  totalDurationSec?: number;
 }
 
 interface AuthUser {
@@ -104,6 +105,8 @@ const episodeInput = document.getElementById('episodeInput') as HTMLInputElement
 const editStatus = document.getElementById('editStatus') as HTMLElement;
 
 let allRecords: WatchRecord[] = [];
+let totalRecordCount: number | null = null;
+let totalDurationSec: number | null = null;
 let editingRecord: WatchRecord | null = null;
 let isSignedIn = false;
 let hasPrivacyConsent = false;
@@ -313,6 +316,8 @@ async function updateRecord(record: WatchRecord, reset = false): Promise<boolean
   }
 
   allRecords = response.history || allRecords;
+  totalRecordCount = null;
+  totalDurationSec = null;
   return true;
 }
 
@@ -444,6 +449,10 @@ function getFilteredRecords(): WatchRecord[] {
   });
 }
 
+function hasActiveFilters(): boolean {
+  return filterEl.value !== 'all' || Boolean(searchFilterEl.value.trim()) || Boolean(dateFilterEl.value);
+}
+
 async function deleteRecord(record: WatchRecord, ask = true): Promise<boolean> {
   if (ask && !confirm(`Delete "${record.manualTitle || record.title || record.rawTitle || record.url}"?`)) {
     return false;
@@ -460,6 +469,8 @@ async function deleteRecord(record: WatchRecord, ask = true): Promise<boolean> {
   }
 
   allRecords = response.history || allRecords.filter((item) => item.id !== record.id);
+  totalRecordCount = null;
+  totalDurationSec = null;
   return true;
 }
 
@@ -667,8 +678,11 @@ function render(): void {
   const records = getFilteredRecords();
   listEl.textContent = '';
 
-  const totalSeconds = records.reduce((sum, item) => sum + (item.durationSec || 0), 0);
-  totalItemsEl.textContent = String(records.length);
+  const usePagedTotals = !hasActiveFilters() && totalRecordCount !== null;
+  const totalSeconds = usePagedTotals && totalDurationSec !== null
+    ? totalDurationSec
+    : records.reduce((sum, item) => sum + (item.durationSec || 0), 0);
+  totalItemsEl.textContent = String(usePagedTotals ? totalRecordCount : records.length);
   totalHoursEl.textContent = (totalSeconds / 3600).toFixed(1);
   renderSyncSummary();
 
@@ -744,6 +758,8 @@ async function loadData(): Promise<void> {
   }
 
   allRecords = response.history || [];
+  totalRecordCount = typeof response.total === 'number' ? response.total : allRecords.filter((record) => !record.deletedAt).length;
+  totalDurationSec = typeof response.totalDurationSec === 'number' ? response.totalDurationSec : allRecords.reduce((sum, record) => sum + Math.max(0, record.durationSec || 0), 0);
   enabledToggle.checked = Boolean(response.enabled);
   render();
 }
@@ -813,6 +829,8 @@ async function clearData(): Promise<void> {
   })) as { ok: boolean };
   if (response?.ok) {
     allRecords = [];
+    totalRecordCount = 0;
+    totalDurationSec = 0;
     render();
   }
 }

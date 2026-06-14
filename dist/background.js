@@ -11,7 +11,7 @@ const COMPLETE_RATIO = 0.9;
 const COMPLETE_NEAR_END_RATIO = 0.85;
 const COMPLETE_NEAR_END_SEC = 60;
 const MERGE_GAP_MS = 5 * 60 * 1000;
-const HEARTBEAT_MINUTES = 0.08;
+const HEARTBEAT_MINUTES = 0.5;
 async function restorePlaybackInTab(tabId, resumeAtSec) {
     if (!Number.isFinite(resumeAtSec) || resumeAtSec <= 0) {
         return;
@@ -911,6 +911,29 @@ function mergeIntoRecord(base, incoming) {
     }
     return base;
 }
+function mergeSessionSnapshot(base, incoming) {
+    const next = ensureRecordIdentity(incoming);
+    const output = { ...ensureRecordIdentity(base) };
+    output.startedAt = Math.min(output.startedAt, next.startedAt);
+    output.endedAt = Math.max(output.endedAt, next.endedAt);
+    output.durationSec = Math.max(output.durationSec || 0, next.durationSec || 0);
+    output.lastPlaybackTime = Math.max(output.lastPlaybackTime ?? 0, next.lastPlaybackTime ?? 0);
+    const mergedVideoDuration = Math.max(output.videoDurationSec ?? 0, next.videoDurationSec ?? 0);
+    output.videoDurationSec = mergedVideoDuration > 0 ? mergedVideoDuration : null;
+    output.url = next.url || output.url;
+    output.hostname = next.hostname || output.hostname;
+    output.rawTitle = next.rawTitle || output.rawTitle;
+    output.title = next.title || output.title;
+    output.mediaType = output.mediaType === 'unknown' ? next.mediaType : output.mediaType;
+    output.season = output.season ?? next.season;
+    output.episode = output.episode ?? next.episode;
+    output.confidence = Math.max(output.confidence || 0, next.confidence || 0);
+    output.identityKey = next.identityKey ?? output.identityKey ?? getRecordIdentity(output);
+    output.syncStatus = 'pending';
+    output.syncError = undefined;
+    output.updatedAt = Date.now();
+    return output;
+}
 function compactHistory(history) {
     const byKey = new Map();
     const candidateToKey = new Map();
@@ -1080,18 +1103,36 @@ async function saveRecord(record) {
     }
     console.debug(`[MovieTrack] Saving record (${record.durationSec}s):`, record.title);
     const history = await getStorage(HISTORY_KEY, []);
-    history.push({
+    const pendingRecord = {
         ...ensureRecordIdentity(record),
         syncStatus: 'pending',
         syncError: undefined,
         updatedAt: Date.now()
-    });
+    };
+    const existingIndex = history.findIndex((item) => item.id === pendingRecord.id);
+    if (existingIndex >= 0) {
+        history[existingIndex] = mergeSessionSnapshot(history[existingIndex], pendingRecord);
+    }
+    else {
+        history.push(pendingRecord);
+    }
     const compacted = compactHistory(history);
     if (compacted.length > 5000) {
         compacted.splice(0, compacted.length - 5000);
     }
     await setStorage(HISTORY_KEY, compacted);
     void syncPendingRecords();
+}
+async function saveActiveSessionSnapshot(tabId, now = Date.now()) {
+    const session = activeSessions.get(tabId);
+    if (!session) {
+        return;
+    }
+    const snapshot = {
+        ...session,
+        endTime: now
+    };
+    await saveRecord(buildRecord(snapshot));
 }
 async function finalizeSession(tabId, endTime = Date.now()) {
     const session = activeSessions.get(tabId);
@@ -1195,6 +1236,7 @@ async function heartbeat() {
     else {
         await startOrUpdateSession(activeTab, Date.now());
     }
+    await saveActiveSessionSnapshot(activeTab.id, Date.now());
 }
 chrome.runtime.onInstalled.addListener(async () => {
     const enabled = await getStorage(ENABLED_KEY, null);
@@ -1217,12 +1259,20 @@ chrome.tabs.onActivated.addListener(async ({ tabId }) => {
     await onActiveTabChanged(tabId);
 });
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-    if (tabId !== currentActiveTabId) {
+    const shouldCheck = changeInfo.url || changeInfo.title || changeInfo.status === 'complete' || typeof changeInfo.audible === 'boolean';
+    if (!shouldCheck) {
         return;
     }
-    if (changeInfo.url || changeInfo.title || changeInfo.status === 'complete') {
-        await startOrUpdateSession(tab, Date.now());
+    const activeTab = await getActiveTabInFocusedWindow();
+    if (!activeTab || activeTab.id !== tabId) {
+        return;
     }
+    if (currentActiveTabId !== tabId) {
+        await onActiveTabChanged(tabId);
+        return;
+    }
+    await startOrUpdateSession(tab, Date.now());
+    await saveActiveSessionSnapshot(tabId, Date.now());
 });
 chrome.tabs.onRemoved.addListener(async (tabId) => {
     await finalizeSession(tabId, Date.now());
@@ -1319,12 +1369,14 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             return;
         }
         if (payload?.type === 'getHistory') {
+            await heartbeat();
             const enabled = await isTrackingEnabled();
             const compacted = await getHistoryWithCloudFallback();
             sendResponse({ ok: true, history: compacted, enabled });
             return;
         }
         if (payload?.type === 'getHistoryPage') {
+            await heartbeat();
             const enabled = await isTrackingEnabled();
             const offset = Math.max(0, Math.round(payload.offset ?? 0));
             const limit = Math.min(200, Math.max(1, Math.round(payload.limit ?? 50)));
@@ -1334,6 +1386,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
                 ok: true,
                 history: visible.slice(offset, offset + limit),
                 total: visible.length,
+                totalDurationSec: visible.reduce((sum, record) => sum + Math.max(0, record.durationSec || 0), 0),
                 enabled
             });
             return;

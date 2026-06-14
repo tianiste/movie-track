@@ -29,6 +29,8 @@ const seasonInput = document.getElementById('seasonInput');
 const episodeInput = document.getElementById('episodeInput');
 const editStatus = document.getElementById('editStatus');
 let allRecords = [];
+let totalRecordCount = null;
+let totalDurationSec = null;
 let editingRecord = null;
 let isSignedIn = false;
 let hasPrivacyConsent = false;
@@ -211,6 +213,8 @@ async function updateRecord(record, reset = false) {
         return false;
     }
     allRecords = response.history || allRecords;
+    totalRecordCount = null;
+    totalDurationSec = null;
     return true;
 }
 function inferGroupTitle(item) {
@@ -322,6 +326,9 @@ function getFilteredRecords() {
         return true;
     });
 }
+function hasActiveFilters() {
+    return filterEl.value !== 'all' || Boolean(searchFilterEl.value.trim()) || Boolean(dateFilterEl.value);
+}
 async function deleteRecord(record, ask = true) {
     if (ask && !confirm(`Delete "${record.manualTitle || record.title || record.rawTitle || record.url}"?`)) {
         return false;
@@ -335,6 +342,8 @@ async function deleteRecord(record, ask = true) {
         return false;
     }
     allRecords = response.history || allRecords.filter((item) => item.id !== record.id);
+    totalRecordCount = null;
+    totalDurationSec = null;
     return true;
 }
 async function deleteGroup(group) {
@@ -510,8 +519,11 @@ function renderLoadMore(remainingCount) {
 function render() {
     const records = getFilteredRecords();
     listEl.textContent = '';
-    const totalSeconds = records.reduce((sum, item) => sum + (item.durationSec || 0), 0);
-    totalItemsEl.textContent = String(records.length);
+    const usePagedTotals = !hasActiveFilters() && totalRecordCount !== null;
+    const totalSeconds = usePagedTotals && totalDurationSec !== null
+        ? totalDurationSec
+        : records.reduce((sum, item) => sum + (item.durationSec || 0), 0);
+    totalItemsEl.textContent = String(usePagedTotals ? totalRecordCount : records.length);
     totalHoursEl.textContent = (totalSeconds / 3600).toFixed(1);
     renderSyncSummary();
     if (records.length === 0) {
@@ -572,6 +584,8 @@ async function loadData() {
         return;
     }
     allRecords = response.history || [];
+    totalRecordCount = typeof response.total === 'number' ? response.total : allRecords.filter((record) => !record.deletedAt).length;
+    totalDurationSec = typeof response.totalDurationSec === 'number' ? response.totalDurationSec : allRecords.reduce((sum, record) => sum + Math.max(0, record.durationSec || 0), 0);
     enabledToggle.checked = Boolean(response.enabled);
     render();
 }
@@ -632,6 +646,8 @@ async function clearData() {
     }));
     if (response?.ok) {
         allRecords = [];
+        totalRecordCount = 0;
+        totalDurationSec = 0;
         render();
     }
 }
