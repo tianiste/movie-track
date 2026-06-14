@@ -749,6 +749,7 @@ h1, h2, h3, h4 {
 }
 
 .open-btn,
+.edit-record-btn,
 .delete-record-btn {
   background: rgba(199, 153, 255, 0.1);
   color: var(--primary);
@@ -768,6 +769,10 @@ h1, h2, h3, h4 {
   background: rgba(199, 153, 255, 0.2);
 }
 
+.edit-record-btn:hover {
+  background: rgba(199, 153, 255, 0.2);
+}
+
 .delete-record-btn {
   background: rgba(255, 110, 132, 0.08);
   color: var(--error);
@@ -778,13 +783,89 @@ h1, h2, h3, h4 {
 }
 
 .open-btn:active,
+.edit-record-btn:active,
 .delete-record-btn:active {
   transform: scale(0.9);
 }
 
 .open-btn .material-symbols-outlined,
+.edit-record-btn .material-symbols-outlined,
 .delete-record-btn .material-symbols-outlined {
   font-size: 16px;
+}
+
+.edit-dialog {
+  width: min(360px, calc(100% - 28px));
+  border: 1px solid rgba(199, 153, 255, 0.14);
+  border-radius: 12px;
+  background: var(--surface-container);
+  color: var(--on-surface);
+  padding: 0;
+  margin: auto;
+}
+
+.edit-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+}
+
+.dialog-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dialog-heading h2 {
+  font-size: 18px;
+}
+
+.dialog-kicker,
+.edit-field > span {
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.edit-field input,
+.edit-field select {
+  min-height: 40px;
+  border: 1px solid rgba(199, 153, 255, 0.12);
+  border-radius: 8px;
+  background: var(--surface-container-highest);
+  color: var(--on-surface);
+  padding: 8px 10px;
+}
+
+.edit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.edit-status {
+  min-height: 16px;
+  color: var(--error);
+  font-size: 11px;
+}
+
+.dialog-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
 /* Card Meta */

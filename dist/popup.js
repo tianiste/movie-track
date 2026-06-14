@@ -18,7 +18,17 @@ const acceptConsentBtn = document.getElementById('acceptConsentBtn');
 const privacyLinkBtn = document.getElementById('privacyLinkBtn');
 const authStatusTextEl = document.getElementById('authStatusText');
 const syncStatusTextEl = document.getElementById('syncStatusText');
+const editDialog = document.getElementById('editDialog');
+const editForm = document.getElementById('editForm');
+const cancelEditBtn = document.getElementById('cancelEditBtn');
+const resetEditBtn = document.getElementById('resetEditBtn');
+const titleInput = document.getElementById('titleInput');
+const mediaTypeInput = document.getElementById('mediaTypeInput');
+const seasonInput = document.getElementById('seasonInput');
+const episodeInput = document.getElementById('episodeInput');
+const editStatus = document.getElementById('editStatus');
 let allRecords = [];
+let editingRecord = null;
 let isSignedIn = false;
 let hasPrivacyConsent = false;
 let hasHostAccess = false;
@@ -157,6 +167,50 @@ function getDisplayRecord(record) {
         season: record.manualSeason ?? record.season ?? parseSeasonHint(fallbackText) ?? urlHint.season,
         episode: record.manualEpisode ?? record.episode ?? parseEpisodeHint(fallbackText) ?? urlHint.episode
     };
+}
+function parseNumberInput(input) {
+    if (!input.value.trim()) {
+        return null;
+    }
+    const value = Number(input.value);
+    return Number.isFinite(value) ? Math.max(0, Math.round(value)) : null;
+}
+function openRecordEditor(record) {
+    editingRecord = record;
+    editStatus.textContent = '';
+    titleInput.value = record.manualTitle || record.title || record.rawTitle || record.url;
+    mediaTypeInput.value = record.manualMediaType ?? record.mediaType ?? 'unknown';
+    const season = record.manualSeason ?? record.season;
+    const episode = record.manualEpisode ?? record.episode;
+    seasonInput.value = season === null ? '' : String(season);
+    episodeInput.value = episode === null ? '' : String(episode);
+    editDialog.showModal();
+}
+async function updateRecord(record, reset = false) {
+    const patch = reset
+        ? {
+            manualTitle: null,
+            manualMediaType: null,
+            manualSeason: null,
+            manualEpisode: null
+        }
+        : {
+            manualTitle: titleInput.value,
+            manualMediaType: mediaTypeInput.value,
+            manualSeason: parseNumberInput(seasonInput),
+            manualEpisode: parseNumberInput(episodeInput)
+        };
+    const response = (await chrome.runtime.sendMessage({
+        type: 'updateRecord',
+        id: record.id,
+        patch
+    }));
+    if (!response?.ok) {
+        editStatus.textContent = response?.error || 'Save failed';
+        return false;
+    }
+    allRecords = response.history || allRecords;
+    return true;
 }
 function inferGroupTitle(item) {
     const title = item.title
@@ -302,6 +356,7 @@ function renderRecordCard(item) {
     const titleEl = node.querySelector('.card-title');
     const urlEl = node.querySelector('.card-url');
     const linkEl = node.querySelector('.open-btn');
+    const editBtn = node.querySelector('.edit-record-btn');
     const deleteBtn = node.querySelector('.delete-record-btn');
     const metaContainer = node.querySelector('.card-meta');
     const progressBar = node.querySelector('.progress-bar');
@@ -330,6 +385,7 @@ function renderRecordCard(item) {
             }
         });
     });
+    editBtn.addEventListener('click', () => openRecordEditor(record));
     const metaItems = metaContainer.querySelectorAll('.meta-item');
     if (metaItems[0]) {
         const metaText = metaItems[0].querySelector('.meta-text');
@@ -617,6 +673,37 @@ searchFilterEl.addEventListener('input', () => {
 dateFilterEl.addEventListener('change', () => {
     resetPagination();
     render();
+});
+cancelEditBtn.addEventListener('click', () => {
+    editDialog.close();
+    editingRecord = null;
+});
+editForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (!editingRecord) {
+        return;
+    }
+    void updateRecord(editingRecord).then((saved) => {
+        if (!saved) {
+            return;
+        }
+        editDialog.close();
+        editingRecord = null;
+        render();
+    });
+});
+resetEditBtn.addEventListener('click', () => {
+    if (!editingRecord) {
+        return;
+    }
+    void updateRecord(editingRecord, true).then((saved) => {
+        if (!saved) {
+            return;
+        }
+        editDialog.close();
+        editingRecord = null;
+        render();
+    });
 });
 filtersToggleBtn.addEventListener('click', () => {
     setFilterDrawerOpen(!isFilterDrawerOpen);

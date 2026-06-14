@@ -137,6 +137,9 @@
             <a class="open-btn" target="_blank" rel="noreferrer" title="Open record">
               <span class="material-symbols-outlined">open_in_new</span>
             </a>
+            <button class="edit-record-btn" type="button" title="Edit record">
+              <span class="material-symbols-outlined">edit</span>
+            </button>
             <button class="delete-record-btn" type="button" title="Delete record">
               <span class="material-symbols-outlined">delete</span>
             </button>
@@ -167,6 +170,52 @@
         </div>
       </article>
     </template>
+
+    <dialog id="editDialog" class="edit-dialog">
+      <form id="editForm" class="edit-form">
+        <div class="dialog-heading">
+          <div>
+            <p class="dialog-kicker">Edit</p>
+            <h2>Record</h2>
+          </div>
+          <button id="cancelEditBtn" class="icon-btn" type="button" title="Close">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <label class="edit-field">
+          <span>Title</span>
+          <input id="titleInput" type="text" autocomplete="off" />
+        </label>
+
+        <label class="edit-field">
+          <span>Category</span>
+          <select id="mediaTypeInput">
+            <option value="anime">Anime</option>
+            <option value="movie">Movie</option>
+            <option value="youtube">YouTube</option>
+            <option value="unknown">Unknown</option>
+          </select>
+        </label>
+
+        <div class="edit-grid">
+          <label class="edit-field">
+            <span>Season</span>
+            <input id="seasonInput" type="number" min="0" inputmode="numeric" />
+          </label>
+          <label class="edit-field">
+            <span>Episode</span>
+            <input id="episodeInput" type="number" min="0" inputmode="numeric" />
+          </label>
+        </div>
+
+        <p id="editStatus" class="edit-status"></p>
+        <div class="dialog-actions">
+          <button id="resetEditBtn" class="action-btn secondary-btn" type="button">Reset</button>
+          <button class="action-btn primary-btn" type="submit">Save</button>
+        </div>
+      </form>
+    </dialog>
 
     <script src="dist/popup.js" type="module"></script>
   </body>

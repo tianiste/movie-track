@@ -21,10 +21,13 @@ interface WatchRecord {
   manualMediaType?: 'anime' | 'movie' | 'youtube' | 'unknown' | null;
   manualSeason?: number | null;
   manualEpisode?: number | null;
+  manualGroupTitle?: string | null;
   deletedAt?: number | null;
   syncStatus?: SyncStatus;
   syncError?: string;
 }
+
+type RecordPatch = Partial<Pick<WatchRecord, 'manualTitle' | 'manualMediaType' | 'manualSeason' | 'manualEpisode'>>;
 
 interface DisplayRecord {
   record: WatchRecord;
@@ -88,8 +91,18 @@ const acceptConsentBtn = document.getElementById('acceptConsentBtn') as HTMLButt
 const privacyLinkBtn = document.getElementById('privacyLinkBtn') as HTMLButtonElement;
 const authStatusTextEl = document.getElementById('authStatusText') as HTMLElement;
 const syncStatusTextEl = document.getElementById('syncStatusText') as HTMLElement;
+const editDialog = document.getElementById('editDialog') as HTMLDialogElement;
+const editForm = document.getElementById('editForm') as HTMLFormElement;
+const cancelEditBtn = document.getElementById('cancelEditBtn') as HTMLButtonElement;
+const resetEditBtn = document.getElementById('resetEditBtn') as HTMLButtonElement;
+const titleInput = document.getElementById('titleInput') as HTMLInputElement;
+const mediaTypeInput = document.getElementById('mediaTypeInput') as HTMLSelectElement;
+const seasonInput = document.getElementById('seasonInput') as HTMLInputElement;
+const episodeInput = document.getElementById('episodeInput') as HTMLInputElement;
+const editStatus = document.getElementById('editStatus') as HTMLElement;
 
 let allRecords: WatchRecord[] = [];
+let editingRecord: WatchRecord | null = null;
 let isSignedIn = false;
 let hasPrivacyConsent = false;
 let hasHostAccess = false;
@@ -249,6 +262,56 @@ function getDisplayRecord(record: WatchRecord): DisplayRecord {
     season: record.manualSeason ?? record.season ?? parseSeasonHint(fallbackText) ?? urlHint.season,
     episode: record.manualEpisode ?? record.episode ?? parseEpisodeHint(fallbackText) ?? urlHint.episode
   };
+}
+
+function parseNumberInput(input: HTMLInputElement): number | null {
+  if (!input.value.trim()) {
+    return null;
+  }
+  const value = Number(input.value);
+  return Number.isFinite(value) ? Math.max(0, Math.round(value)) : null;
+}
+
+function openRecordEditor(record: WatchRecord): void {
+  editingRecord = record;
+  editStatus.textContent = '';
+  titleInput.value = record.manualTitle || record.title || record.rawTitle || record.url;
+  mediaTypeInput.value = record.manualMediaType ?? record.mediaType ?? 'unknown';
+  const season = record.manualSeason ?? record.season;
+  const episode = record.manualEpisode ?? record.episode;
+  seasonInput.value = season === null ? '' : String(season);
+  episodeInput.value = episode === null ? '' : String(episode);
+  editDialog.showModal();
+}
+
+async function updateRecord(record: WatchRecord, reset = false): Promise<boolean> {
+  const patch: RecordPatch = reset
+    ? {
+        manualTitle: null,
+        manualMediaType: null,
+        manualSeason: null,
+        manualEpisode: null
+      }
+    : {
+        manualTitle: titleInput.value,
+        manualMediaType: mediaTypeInput.value as WatchRecord['mediaType'],
+        manualSeason: parseNumberInput(seasonInput),
+        manualEpisode: parseNumberInput(episodeInput)
+      };
+
+  const response = (await chrome.runtime.sendMessage({
+    type: 'updateRecord',
+    id: record.id,
+    patch
+  })) as { ok: boolean; history?: WatchRecord[]; error?: string };
+
+  if (!response?.ok) {
+    editStatus.textContent = response?.error || 'Save failed';
+    return false;
+  }
+
+  allRecords = response.history || allRecords;
+  return true;
 }
 
 function inferGroupTitle(item: DisplayRecord): string {
@@ -422,6 +485,7 @@ function renderRecordCard(item: DisplayRecord): HTMLElement {
   const titleEl = node.querySelector('.card-title') as HTMLElement;
   const urlEl = node.querySelector('.card-url') as HTMLElement;
   const linkEl = node.querySelector('.open-btn') as HTMLAnchorElement;
+  const editBtn = node.querySelector('.edit-record-btn') as HTMLButtonElement;
   const deleteBtn = node.querySelector('.delete-record-btn') as HTMLButtonElement;
   const metaContainer = node.querySelector('.card-meta') as HTMLElement;
   const progressBar = node.querySelector('.progress-bar') as HTMLElement;
@@ -453,6 +517,7 @@ function renderRecordCard(item: DisplayRecord): HTMLElement {
       }
     });
   });
+  editBtn.addEventListener('click', () => openRecordEditor(record));
 
   const metaItems = metaContainer.querySelectorAll('.meta-item');
   if (metaItems[0]) {
@@ -795,6 +860,37 @@ searchFilterEl.addEventListener('input', () => {
 dateFilterEl.addEventListener('change', () => {
   resetPagination();
   render();
+});
+cancelEditBtn.addEventListener('click', () => {
+  editDialog.close();
+  editingRecord = null;
+});
+editForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  if (!editingRecord) {
+    return;
+  }
+  void updateRecord(editingRecord).then((saved) => {
+    if (!saved) {
+      return;
+    }
+    editDialog.close();
+    editingRecord = null;
+    render();
+  });
+});
+resetEditBtn.addEventListener('click', () => {
+  if (!editingRecord) {
+    return;
+  }
+  void updateRecord(editingRecord, true).then((saved) => {
+    if (!saved) {
+      return;
+    }
+    editDialog.close();
+    editingRecord = null;
+    render();
+  });
 });
 filtersToggleBtn.addEventListener('click', () => {
   setFilterDrawerOpen(!isFilterDrawerOpen);
