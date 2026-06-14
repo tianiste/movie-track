@@ -2,7 +2,7 @@
 
 Use this file while filling the Chrome Web Store listing and privacy practices.
 
-Official policy cross-check used on June 12, 2026:
+Official policy cross-check used on June 14, 2026:
 
 - https://developer.chrome.com/docs/webstore/program-policies/user-data-faq
 - https://developer.chrome.com/docs/webstore/cws-dashboard-privacy
@@ -31,6 +31,18 @@ If GitHub Pages is enabled for this repo from the `main` branch `/docs` folder, 
 
 ```txt
 https://tianiste.github.io/movie-track/privacy.html
+```
+
+## Chrome Web Store Item
+
+```txt
+jkagnflabbhgejkamhdkeeeeigfhjhje
+```
+
+OAuth redirect URL:
+
+```txt
+https://jkagnflabbhgejkamhdkeeeeigfhjhje.chromiumapp.org/supabase-auth
 ```
 
 ## Single Purpose
@@ -79,11 +91,11 @@ MovieTrack's use of browser permissions and user data is limited to its single p
 
 ## Store Description Draft
 
-MovieTrack saves your movie, anime, and video watch progress across sites. It records watch time only from the active audible tab with a readable video element, keeps history locally first, and syncs to your account after Google sign-in.
+MovieTrack is a privacy-conscious watch progress tracker for videos, anime, movies, and YouTube. It helps you keep a simple history of what you watched, where you watched it, and how far you got. MovieTrack works locally by default, and you can optionally sign in with Google to sync your progress through your Supabase account.
 
 ## Short Description Draft
 
-Track movie, anime, and video watch progress across sites with optional Google account sync.
+Automatically track movies, anime, YouTube videos, and watch progress across devices.
 
 ## Reviewer Notes
 

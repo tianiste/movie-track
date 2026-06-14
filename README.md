@@ -13,7 +13,7 @@ It watches only your active audible tab, detects a readable video element, saves
 
 **Website:** [tianiste.github.io/movie-track](https://tianiste.github.io/movie-track/)
 
-> Current status: early public-ready extension. Core local tracking, Google sign-in, Supabase sync, privacy consent, export, cloud delete, filters, and packaged Web Store verification exist. Chrome Web Store release still needs final store submission steps.
+> Current status: Chrome Web Store submission prepared. Core local tracking, Google sign-in, Supabase sync, privacy consent, export, cloud delete, filters, Library grouping, and packaged Web Store verification exist.
 
 ## Index
 
@@ -30,9 +30,9 @@ It watches only your active audible tab, detects a readable video element, saves
 
 ## Screenshots
 
-| Popup history | First-run privacy consent | Cross-device sync |
+| Popup history | Popup filters | Cross-device sync |
 | --- | --- | --- |
-| ![MovieTrack popup history](docs/screenshots/popup-history.png) | ![MovieTrack privacy consent](docs/screenshots/privacy-consent.png) | ![MovieTrack sync demo](docs/screenshots/sync-demo.gif) |
+| ![MovieTrack popup history](docs/screenshots/popup-history.png) | ![MovieTrack popup filters](docs/screenshots/popup-filters.png) | ![MovieTrack sync settings](docs/screenshots/sync-account.png) |
 
 ## Features
 
@@ -56,7 +56,7 @@ It watches only your active audible tab, detects a readable video element, saves
 
 ### Chrome Web Store
 
-Not published yet. Release checklist lives in [docs/publish-todo.md](docs/publish-todo.md) and [docs/release-test-plan.md](docs/release-test-plan.md).
+Chrome Web Store review is in progress. Until the listing is public, use the latest GitHub Release ZIP or load the extension manually.
 
 ### Manual Install
 
@@ -144,7 +144,7 @@ In Supabase Dashboard:
 2. Add extension redirect URL:
 
    ```txt
-   https://lgocadpaahlplfilfmacphcfkfghfihl.chromiumapp.org/supabase-auth
+   https://jkagnflabbhgejkamhdkeeeeigfhjhje.chromiumapp.org/supabase-auth
    ```
 
 3. Keep Google OAuth client secret and database credentials out of the extension.

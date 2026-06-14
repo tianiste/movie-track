@@ -16,7 +16,7 @@ Use `docs/release-test-plan.md` to record final manual proof before submitting t
     ```txt
     https://tianiste.github.io/movie-track/privacy.html
     ```
-  - Verified HTTP 200 on June 12, 2026.
+  - Verified HTTP 200 on June 14, 2026.
   - Add this URL in Chrome Web Store Developer Dashboard.
 
 - [ ] Fill Chrome Web Store privacy practices.
@@ -63,7 +63,7 @@ Use `docs/release-test-plan.md` to record final manual proof before submitting t
   - [x] Load `/tmp/movietrack-webstore.zip` contents in clean Chromium profile.
   - [x] Confirm extension ID is:
     ```txt
-    lgocadpaahlplfilfmacphcfkfghfihl
+    jkagnflabbhgejkamhdkeeeeigfhjhje
     ```
   - [x] Confirm service worker starts from packaged files.
   - [x] Confirm fresh install has no active required host permissions.
@@ -79,7 +79,7 @@ Use `docs/release-test-plan.md` to record final manual proof before submitting t
   ```sh
   supabase db advisors --linked --level warn --fail-on error
   ```
-  - Last run: June 12, 2026.
+  - Last run: June 14, 2026.
   - Current warnings only:
     - `pg_graphql_authenticated_table_exposed`
     - `auth_leaked_password_protection`
@@ -125,7 +125,7 @@ Use `docs/release-test-plan.md` to record final manual proof before submitting t
   ```sh
   npm run verify:publish
   ```
-  Last run: June 12, 2026.
+  Last run: June 14, 2026.
   Covers:
   - typecheck
   - Web Store package build

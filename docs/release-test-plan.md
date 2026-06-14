@@ -5,7 +5,7 @@ Use this before Chrome Web Store submission. Do not publish until every evidence
 ## Build Evidence
 
 - Commit tested: Current workspace snapshot in this session
-- Date tested: June 12, 2026
+- Date tested: June 14, 2026
 - Tester: User confirmed in current session
 - Command:
   ```sh
@@ -23,7 +23,7 @@ Use this before Chrome Web Store submission. Do not publish until every evidence
 - Extension loaded from extracted ZIP, not source folder: Yes
 - Extension ID:
   ```txt
-  lgocadpaahlplfilfmacphcfkfghfihl
+  jkagnflabbhgejkamhdkeeeeigfhjhje
   ```
 - First popup showed consent before tracking: Yes
 - Clicking `Allow tracking` showed Chrome site-access prompt: Yes
@@ -35,7 +35,7 @@ Use this before Chrome Web Store submission. Do not publish until every evidence
 - Supabase Google provider enabled: Yes
 - Google OAuth redirect URL configured:
   ```txt
-  https://lgocadpaahlplfilfmacphcfkfghfihl.chromiumapp.org/supabase-auth
+  https://jkagnflabbhgejkamhdkeeeeigfhjhje.chromiumapp.org/supabase-auth
   ```
 - Packaged extension sign-in worked: Yes
 - Popup showed signed-in Google email/account: Yes

@@ -6,16 +6,15 @@ Current files:
 
 ```txt
 popup-history.png
-privacy-consent.png
+popup-filters.png
 sync-account.png
-sync-demo.gif
 ```
 
 Refresh checklist:
 
 - Use a clean browser profile.
-- Avoid showing private email addresses unless intentionally blurred.
-- Avoid showing sensitive watch history.
+- Redact private email addresses.
+- Avoid showing sensitive watch history or private URLs.
 - Show at least one YouTube record and one anime/movie record.
 - Show signed-in sync state only with a test account.
-- Keep GIF short, ideally under 10 seconds.
+- Export Chrome Web Store screenshots as 1280 x 800 PNG, 8-bit RGB, no alpha.
