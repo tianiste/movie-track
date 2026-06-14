@@ -249,6 +249,34 @@ function getFilteredRecords() {
         return true;
     });
 }
+async function deleteRecord(record, ask = true) {
+    if (ask && !confirm(`Delete "${record.manualTitle || record.title || record.rawTitle || record.url}"?`)) {
+        return false;
+    }
+    const response = (await chrome.runtime.sendMessage({
+        type: 'deleteRecord',
+        id: record.id
+    }));
+    if (!response?.ok) {
+        syncStatusTextEl.textContent = response?.error || 'Delete failed';
+        return false;
+    }
+    allRecords = response.history || allRecords.filter((item) => item.id !== record.id);
+    return true;
+}
+async function deleteGroup(group) {
+    if (!confirm(`Delete ${group.records.length} records in "${group.title}"?`)) {
+        return;
+    }
+    for (const item of group.records) {
+        const deleted = await deleteRecord(item.record, false);
+        if (!deleted) {
+            return;
+        }
+    }
+    expandedGroupKeys.delete(group.key);
+    render();
+}
 function renderRecordCard(item) {
     const record = item.record;
     const node = template.content.firstElementChild?.cloneNode(true);
@@ -256,6 +284,7 @@ function renderRecordCard(item) {
     const titleEl = node.querySelector('.card-title');
     const urlEl = node.querySelector('.card-url');
     const linkEl = node.querySelector('.open-btn');
+    const deleteBtn = node.querySelector('.delete-record-btn');
     const metaContainer = node.querySelector('.card-meta');
     const progressBar = node.querySelector('.progress-bar');
     const mediaType = item.mediaType;
@@ -273,6 +302,13 @@ function renderRecordCard(item) {
             type: 'openWithResume',
             url: record.url,
             resumeAtSec: watchedSeconds
+        });
+    });
+    deleteBtn.addEventListener('click', () => {
+        void deleteRecord(record).then((deleted) => {
+            if (deleted) {
+                render();
+            }
         });
     });
     const metaItems = metaContainer.querySelectorAll('.meta-item');
@@ -336,6 +372,14 @@ function renderSeasonGroup(group) {
     expandIcon.className = 'material-symbols-outlined';
     expandIcon.textContent = 'expand_more';
     expandBtn.append(expandIcon);
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'icon-btn popup-group-delete';
+    deleteBtn.type = 'button';
+    deleteBtn.title = 'Delete group';
+    const deleteIcon = document.createElement('span');
+    deleteIcon.className = 'material-symbols-outlined';
+    deleteIcon.textContent = 'delete';
+    deleteBtn.append(deleteIcon);
     expandBtn.addEventListener('click', () => {
         if (expandedGroupKeys.has(group.key)) {
             expandedGroupKeys.delete(group.key);
@@ -345,7 +389,13 @@ function renderSeasonGroup(group) {
         }
         render();
     });
-    headerEl.append(badgeEl, headingWrap, expandBtn);
+    deleteBtn.addEventListener('click', () => {
+        void deleteGroup(group);
+    });
+    const actionsEl = document.createElement('div');
+    actionsEl.className = 'popup-group-actions';
+    actionsEl.append(deleteBtn, expandBtn);
+    headerEl.append(badgeEl, headingWrap, actionsEl);
     groupEl.append(headerEl);
     const bodyEl = document.createElement('div');
     bodyEl.className = 'popup-group-body';

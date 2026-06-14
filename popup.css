@@ -583,14 +583,31 @@ h1, h2, h3, h4 {
   font-size: 10px;
 }
 
-.popup-group-toggle {
+.popup-group-actions {
   margin-left: auto;
   flex: 0 0 auto;
+  display: flex;
+  gap: 6px;
+}
+
+.popup-group-toggle {
   background: rgba(199, 153, 255, 0.1);
   color: var(--primary);
   border-radius: 999px;
   width: 30px;
   height: 30px;
+}
+
+.popup-group-delete {
+  background: rgba(255, 110, 132, 0.08);
+  color: var(--error);
+  border-radius: 999px;
+  width: 30px;
+  height: 30px;
+}
+
+.popup-group-delete:hover {
+  background: rgba(255, 110, 132, 0.16);
 }
 
 .popup-group-toggle .material-symbols-outlined {
@@ -725,7 +742,14 @@ h1, h2, h3, h4 {
   white-space: nowrap;
 }
 
-.open-btn {
+.card-actions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 8px;
+}
+
+.open-btn,
+.delete-record-btn {
   background: rgba(199, 153, 255, 0.1);
   color: var(--primary);
   border: none;
@@ -744,11 +768,22 @@ h1, h2, h3, h4 {
   background: rgba(199, 153, 255, 0.2);
 }
 
-.open-btn:active {
+.delete-record-btn {
+  background: rgba(255, 110, 132, 0.08);
+  color: var(--error);
+}
+
+.delete-record-btn:hover {
+  background: rgba(255, 110, 132, 0.16);
+}
+
+.open-btn:active,
+.delete-record-btn:active {
   transform: scale(0.9);
 }
 
-.open-btn .material-symbols-outlined {
+.open-btn .material-symbols-outlined,
+.delete-record-btn .material-symbols-outlined {
   font-size: 16px;
 }
 

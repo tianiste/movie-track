@@ -358,6 +358,41 @@ function getFilteredRecords(): WatchRecord[] {
   });
 }
 
+async function deleteRecord(record: WatchRecord, ask = true): Promise<boolean> {
+  if (ask && !confirm(`Delete "${record.manualTitle || record.title || record.rawTitle || record.url}"?`)) {
+    return false;
+  }
+
+  const response = (await chrome.runtime.sendMessage({
+    type: 'deleteRecord',
+    id: record.id
+  })) as { ok: boolean; history?: WatchRecord[]; error?: string };
+
+  if (!response?.ok) {
+    syncStatusTextEl.textContent = response?.error || 'Delete failed';
+    return false;
+  }
+
+  allRecords = response.history || allRecords.filter((item) => item.id !== record.id);
+  return true;
+}
+
+async function deleteGroup(group: PopupGroup): Promise<void> {
+  if (!confirm(`Delete ${group.records.length} records in "${group.title}"?`)) {
+    return;
+  }
+
+  for (const item of group.records) {
+    const deleted = await deleteRecord(item.record, false);
+    if (!deleted) {
+      return;
+    }
+  }
+
+  expandedGroupKeys.delete(group.key);
+  render();
+}
+
 function renderRecordCard(item: DisplayRecord): HTMLElement {
   const record = item.record;
   const node = template.content.firstElementChild?.cloneNode(true) as HTMLElement;
@@ -366,6 +401,7 @@ function renderRecordCard(item: DisplayRecord): HTMLElement {
   const titleEl = node.querySelector('.card-title') as HTMLElement;
   const urlEl = node.querySelector('.card-url') as HTMLElement;
   const linkEl = node.querySelector('.open-btn') as HTMLAnchorElement;
+  const deleteBtn = node.querySelector('.delete-record-btn') as HTMLButtonElement;
   const metaContainer = node.querySelector('.card-meta') as HTMLElement;
   const progressBar = node.querySelector('.progress-bar') as HTMLElement;
 
@@ -386,6 +422,13 @@ function renderRecordCard(item: DisplayRecord): HTMLElement {
       type: 'openWithResume',
       url: record.url,
       resumeAtSec: watchedSeconds
+    });
+  });
+  deleteBtn.addEventListener('click', () => {
+    void deleteRecord(record).then((deleted) => {
+      if (deleted) {
+        render();
+      }
     });
   });
 
@@ -461,6 +504,16 @@ function renderSeasonGroup(group: PopupGroup): HTMLElement {
   expandIcon.textContent = 'expand_more';
   expandBtn.append(expandIcon);
 
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'icon-btn popup-group-delete';
+  deleteBtn.type = 'button';
+  deleteBtn.title = 'Delete group';
+
+  const deleteIcon = document.createElement('span');
+  deleteIcon.className = 'material-symbols-outlined';
+  deleteIcon.textContent = 'delete';
+  deleteBtn.append(deleteIcon);
+
   expandBtn.addEventListener('click', () => {
     if (expandedGroupKeys.has(group.key)) {
       expandedGroupKeys.delete(group.key);
@@ -469,8 +522,15 @@ function renderSeasonGroup(group: PopupGroup): HTMLElement {
     }
     render();
   });
+  deleteBtn.addEventListener('click', () => {
+    void deleteGroup(group);
+  });
 
-  headerEl.append(badgeEl, headingWrap, expandBtn);
+  const actionsEl = document.createElement('div');
+  actionsEl.className = 'popup-group-actions';
+  actionsEl.append(deleteBtn, expandBtn);
+
+  headerEl.append(badgeEl, headingWrap, actionsEl);
   groupEl.append(headerEl);
 
   const bodyEl = document.createElement('div');
