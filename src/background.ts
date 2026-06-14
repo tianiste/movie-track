@@ -714,6 +714,25 @@ function normalizeTitle(title = ''): string {
     .trim();
 }
 
+function normalizeIdentityTitle(title = ''): string {
+  return normalizeTitle(title)
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\bS\d{1,2}\s*E\d{1,4}\b/gi, ' ')
+    .replace(/\bSeason\s*\d{1,2}\b/gi, ' ')
+    .replace(/\bEpisode\s*\d{1,4}\b/gi, ' ')
+    .replace(/\bEp\s*\d{1,4}\b/gi, ' ')
+    .replace(/\bWatch\s+(?:All\s+)?Episodes?\b/gi, ' ')
+    .replace(/\bWatch\s+Online(?:\s+Free)?\b/gi, ' ')
+    .replace(/\bFull\s+Movie\b/gi, ' ')
+    .replace(/\b(?:sub|dub|subbed|dubbed|vostfr)\b/gi, ' ')
+    .replace(/\bin\s+HD\b/gi, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function parseEpisodeHint(text: string): EpisodeHint {
   const seasonEpisodePatterns: RegExp[] = [
     /\b(?:season|series|seas)\s*[:#._\-/]?\s*(\d{1,2})(?:st|nd|rd|th)?\b\D{0,16}(?:episode|ep|e)\s*[:#._\-/]?\s*(\d{1,3})(?:st|nd|rd|th)?\b/i,
@@ -1018,12 +1037,45 @@ function getRecordIdentity(record: WatchRecord): string {
     return `youtube|${youtubeVideoId}`;
   }
 
-  const normalizedTitle = normalizeTitle(record.title || record.rawTitle || '').toLowerCase();
+  const normalizedTitle = normalizeIdentityTitle(record.title || record.rawTitle || '');
   const season = record.season ?? 'x';
   const episode = record.episode ?? 'x';
   const mediaType = record.mediaType ?? 'unknown';
   const hostnamePart = mediaType === 'unknown' ? `|${record.hostname}` : '';
   return `${mediaType}|${normalizedTitle}|${season}|${episode}${hostnamePart}`;
+}
+
+function getUrlIdentity(record: WatchRecord): string | null {
+  const url = parseUrl(record.url);
+  if (!url) {
+    return null;
+  }
+
+  const path = url.pathname
+    .toLowerCase()
+    .replace(/\/+/g, '/')
+    .replace(/\/$/, '');
+  if (!path || path === '/') {
+    return null;
+  }
+
+  return `url|${url.hostname.replace(/^www\./i, '').toLowerCase()}|${path}`;
+}
+
+function getRecordIdentityCandidates(record: WatchRecord): string[] {
+  const mediaType = record.mediaType ?? 'unknown';
+  const season = record.season ?? 'x';
+  const episode = record.episode ?? 'x';
+  const title = normalizeIdentityTitle(record.title || record.rawTitle || '');
+  const candidates = [
+    record.identityKey,
+    getRecordIdentity(record),
+    getUrlIdentity(record),
+    title.length >= 5 ? `title|${mediaType}|${title}|${season}|${episode}` : null,
+    title.length >= 5 && episode !== 'x' ? `episode|${mediaType}|${title}|${season}|${episode}` : null
+  ].filter((value): value is string => Boolean(value));
+
+  return [...new Set(candidates)];
 }
 
 function mergeIntoRecord(base: WatchRecord, incoming: WatchRecord): WatchRecord {
@@ -1081,18 +1133,27 @@ function mergeIntoRecord(base: WatchRecord, incoming: WatchRecord): WatchRecord 
 
 function compactHistory(history: WatchRecord[]): WatchRecord[] {
   const byKey = new Map<string, WatchRecord>();
+  const candidateToKey = new Map<string, string>();
   const orderedKeys: string[] = [];
   const sorted = [...history].sort((a, b) => a.startedAt - b.startedAt);
 
   for (const record of sorted) {
-    const withIdentity = ensureRecordIdentity(record);
-    const key = withIdentity.identityKey as string;
+    const existingIdentity = ensureRecordIdentity(record);
+    const withIdentity = {
+      ...existingIdentity,
+      identityKey: getRecordIdentity(record)
+    };
+    const candidates = getRecordIdentityCandidates(existingIdentity);
+    const key = candidates.map((candidate) => candidateToKey.get(candidate)).find(Boolean) ?? (withIdentity.identityKey as string);
     const existing = byKey.get(key);
     if (!existing) {
       byKey.set(key, { ...withIdentity });
       orderedKeys.push(key);
     } else {
       mergeIntoRecord(existing, withIdentity);
+    }
+    for (const candidate of getRecordIdentityCandidates(byKey.get(key) as WatchRecord)) {
+      candidateToKey.set(candidate, key);
     }
   }
 
