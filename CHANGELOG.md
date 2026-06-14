@@ -2,6 +2,18 @@
 
 All notable changes to MovieTrack are documented here.
 
+## 0.1.3 - 2026-06-14
+
+### Added
+
+- Delete buttons for individual records directly in the popup.
+- Separate popup group delete action for deleting grouped episode records.
+- Paginated popup and Library history rendering with load-more controls.
+
+### Changed
+
+- Collapsed popup and Library groups now render episode rows lazily for faster large histories.
+
 ## 0.1.2 - 2026-06-13
 
 ### Added
