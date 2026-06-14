@@ -35,11 +35,11 @@ jobs:
         run: npm ci
 
       - name: Build and verify package
-        run: npm run verify:publish
+        run: npm run typecheck && npm run package:github
 
       - name: Prepare release files
         run: |
-          cp /tmp/movietrack-webstore.zip movietrack.zip
+          cp /tmp/movietrack-github.zip movietrack.zip
           sha256sum movietrack.zip > movietrack.zip.sha256
 
       - name: Create or update GitHub release

@@ -21,8 +21,8 @@ You can also run the **Release** workflow manually from GitHub Actions and provi
 1. Build the extension.
    - `npm run build`
 2. Package the release ZIP.
-   - `npm run package:webstore`
-3. Rename `/tmp/movietrack-webstore.zip` to `movietrack.zip`.
+   - `npm run package:github`
+3. Rename `/tmp/movietrack-github.zip` to `movietrack.zip`.
 4. Upload `movietrack.zip` to a GitHub Release.
 5. Add release notes with the version number and key changes.
 
@@ -40,4 +40,5 @@ You can also run the **Release** workflow manually from GitHub Actions and provi
 - This is free, but it is manual install rather than one-click Chrome Web Store install.
 - Users must repeat the manual update flow when a new release is published.
 - Do not include `MovieTrack.pem`, `.env`, or any private keys in the release ZIP.
-- The same packaged ZIP can also be used as a release artifact for other browsers that support manual extension loading.
+- GitHub Release ZIPs include a public `manifest.key` so manual installs keep the same extension ID across updates.
+- Chrome Web Store ZIPs must be built with `npm run package:webstore`; they do not include `manifest.key`.

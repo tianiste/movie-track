@@ -4,6 +4,7 @@ const { existsSync, readFileSync } = require('node:fs');
 const { inflateRawSync } = require('node:zlib');
 
 const zipPath = process.argv[2] || '/tmp/movietrack-webstore.zip';
+const allowManifestKey = process.argv.includes('--allow-key');
 
 const requiredFiles = new Set([
   'manifest.json',
@@ -155,8 +156,11 @@ for (const file of files.filter((entry) => /\.(?:js|html|css|json)$/i.test(entry
 }
 
 const manifest = JSON.parse(readZipEntry(zip, 'manifest.json'));
-if ('key' in manifest) {
+if ('key' in manifest && !allowManifestKey) {
   fail('manifest must not include key; Chrome Web Store rejects it');
+}
+if (allowManifestKey && !manifest.key) {
+  fail('GitHub release package must include manifest key for stable manual-install ID');
 }
 if (manifest.host_permissions?.includes('<all_urls>')) {
   fail('manifest must not require <all_urls>; use optional_host_permissions');
