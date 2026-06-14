@@ -1,4 +1,5 @@
 const POPUP_PAGE_SIZE = 20;
+const POPUP_HISTORY_LIMIT = 50;
 const listEl = document.getElementById('list');
 const template = document.getElementById('rowTemplate');
 const totalItemsEl = document.getElementById('totalItems');
@@ -559,7 +560,11 @@ function renderSyncSummary() {
     syncStatusTextEl.textContent = 'Synced';
 }
 async function loadData() {
-    const response = (await chrome.runtime.sendMessage({ type: 'getHistory' }));
+    const response = (await chrome.runtime.sendMessage({
+        type: 'getHistoryPage',
+        offset: 0,
+        limit: POPUP_HISTORY_LIMIT
+    }));
     if (!response?.ok) {
         return;
     }

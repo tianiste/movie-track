@@ -1,5 +1,6 @@
 type SyncStatus = 'pending' | 'syncing' | 'synced' | 'failed';
 const POPUP_PAGE_SIZE = 20;
+const POPUP_HISTORY_LIMIT = 50;
 
 interface WatchRecord {
   id: string;
@@ -49,6 +50,7 @@ interface GetHistoryResponse {
   ok: boolean;
   history: WatchRecord[];
   enabled: boolean;
+  total?: number;
 }
 
 interface AuthUser {
@@ -727,7 +729,11 @@ function renderSyncSummary(): void {
 }
 
 async function loadData(): Promise<void> {
-  const response = (await chrome.runtime.sendMessage({ type: 'getHistory' })) as GetHistoryResponse;
+  const response = (await chrome.runtime.sendMessage({
+    type: 'getHistoryPage',
+    offset: 0,
+    limit: POPUP_HISTORY_LIMIT
+  })) as GetHistoryResponse;
   if (!response?.ok) {
     return;
   }

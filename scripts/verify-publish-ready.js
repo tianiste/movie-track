@@ -266,6 +266,12 @@ for (const phrase of [
 if (!background.includes("payload?.type === 'syncCloudToLocal'") || !background.includes('const history = await refreshHistoryFromCloud()')) {
   fail('background cloud-to-local sync handler is missing');
 }
+if (!background.includes("payload?.type === 'getHistoryPage'")) {
+  fail('background paged history handler is missing');
+}
+if (!popup.includes("type: 'getHistoryPage'")) {
+  fail('popup must use paged history loading');
+}
 
 const privacyPolicy = readText('PRIVACY_POLICY.md');
 const hostedPrivacy = readText('docs/privacy.html');

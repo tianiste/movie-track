@@ -1523,6 +1523,8 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
       scope?: 'local' | 'cloudAndLocal';
       id?: string;
       patch?: RecordPatch;
+      offset?: number;
+      limit?: number;
     };
 
     if (payload?.type === 'getPrivacyStatus') {
@@ -1600,20 +1602,35 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
 
     if (payload?.type === 'getHistory') {
       const enabled = await isTrackingEnabled();
-      let compacted: WatchRecord[];
-
-      try {
-        compacted = await refreshHistoryFromCloud();
-      } catch {
-        const history = await getStorage<WatchRecord[]>(HISTORY_KEY, []);
-        compacted = compactHistory(history);
-        const changed = compacted.length !== history.length;
-        if (changed) {
-          await setStorage(HISTORY_KEY, compacted);
-        }
+      const history = await getStorage<WatchRecord[]>(HISTORY_KEY, []);
+      const compacted = compactHistory(history);
+      const changed = compacted.length !== history.length;
+      if (changed) {
+        await setStorage(HISTORY_KEY, compacted);
       }
 
       sendResponse({ ok: true, history: compacted, enabled });
+      return;
+    }
+
+    if (payload?.type === 'getHistoryPage') {
+      const enabled = await isTrackingEnabled();
+      const offset = Math.max(0, Math.round(payload.offset ?? 0));
+      const limit = Math.min(200, Math.max(1, Math.round(payload.limit ?? 50)));
+      const history = await getStorage<WatchRecord[]>(HISTORY_KEY, []);
+      const compacted = compactHistory(history);
+      const changed = compacted.length !== history.length;
+      if (changed) {
+        await setStorage(HISTORY_KEY, compacted);
+      }
+
+      const visible = compacted.filter((record) => !record.deletedAt).sort((a, b) => b.startedAt - a.startedAt);
+      sendResponse({
+        ok: true,
+        history: visible.slice(offset, offset + limit),
+        total: visible.length,
+        enabled
+      });
       return;
     }
 
