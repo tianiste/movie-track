@@ -560,11 +560,14 @@ function renderSyncSummary() {
     syncStatusTextEl.textContent = 'Synced';
 }
 async function loadData() {
-    const response = (await chrome.runtime.sendMessage({
+    let response = (await chrome.runtime.sendMessage({
         type: 'getHistoryPage',
         offset: 0,
         limit: POPUP_HISTORY_LIMIT
     }));
+    if (!response?.ok) {
+        response = (await chrome.runtime.sendMessage({ type: 'getHistory' }));
+    }
     if (!response?.ok) {
         return;
     }

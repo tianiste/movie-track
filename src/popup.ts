@@ -729,11 +729,16 @@ function renderSyncSummary(): void {
 }
 
 async function loadData(): Promise<void> {
-  const response = (await chrome.runtime.sendMessage({
+  let response = (await chrome.runtime.sendMessage({
     type: 'getHistoryPage',
     offset: 0,
     limit: POPUP_HISTORY_LIMIT
-  })) as GetHistoryResponse;
+  })) as GetHistoryResponse | undefined;
+
+  if (!response?.ok) {
+    response = (await chrome.runtime.sendMessage({ type: 'getHistory' })) as GetHistoryResponse | undefined;
+  }
+
   if (!response?.ok) {
     return;
   }
