@@ -44,6 +44,12 @@
         </button>
       </section>
 
+      <section class="status-tabs" aria-label="Watch status">
+        <button class="status-tab active" type="button" data-status-tab="continue">Continue Watching</button>
+        <button class="status-tab" type="button" data-status-tab="finished">Finished</button>
+        <button class="status-tab" type="button" data-status-tab="all">All</button>
+      </section>
+
       <section id="statusText" class="status-text">Loading library...</section>
       <section id="groups" class="groups"></section>
     </main>
@@ -178,6 +184,9 @@
           </button>
           <button class="icon-btn edit-record-btn" type="button" title="Edit">
             <span class="material-symbols-outlined">edit</span>
+          </button>
+          <button class="icon-btn status-record-btn" type="button" title="Change watch status">
+            <span class="material-symbols-outlined">done_all</span>
           </button>
           <button class="icon-btn danger-btn delete-record-btn" type="button" title="Delete">
             <span class="material-symbols-outlined">delete</span>

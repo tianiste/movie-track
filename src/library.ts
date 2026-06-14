@@ -1,5 +1,6 @@
 type MediaType = 'anime' | 'movie' | 'youtube' | 'unknown';
 type SyncStatus = 'pending' | 'syncing' | 'synced' | 'failed';
+type WatchStatus = 'continue' | 'finished';
 const CUSTOM_GROUPS_KEY = 'libraryCustomGroups';
 const UNGROUPED_GROUP_TITLE = '__movietrack_ungrouped__';
 const PAGE_SIZE = 30;
@@ -23,6 +24,7 @@ interface WatchRecord {
   manualSeason?: number | null;
   manualEpisode?: number | null;
   manualGroupTitle?: string | null;
+  manualStatus?: WatchStatus | null;
   deletedAt?: number | null;
   syncStatus?: SyncStatus;
 }
@@ -43,7 +45,7 @@ interface CustomGroupDefinition {
 }
 
 type EditorMode = { type: 'record'; record: WatchRecord } | { type: 'group'; group: WatchGroup } | null;
-type RecordPatch = Partial<Pick<WatchRecord, 'manualTitle' | 'manualMediaType' | 'manualSeason' | 'manualEpisode' | 'manualGroupTitle'>>;
+type RecordPatch = Partial<Pick<WatchRecord, 'manualTitle' | 'manualMediaType' | 'manualSeason' | 'manualEpisode' | 'manualGroupTitle' | 'manualStatus'>>;
 
 const groupsEl = document.getElementById('groups') as HTMLElement;
 const statusTextEl = document.getElementById('statusText') as HTMLElement;
@@ -51,6 +53,7 @@ const groupTemplate = document.getElementById('groupTemplate') as HTMLTemplateEl
 const recordTemplate = document.getElementById('recordTemplate') as HTMLTemplateElement;
 const searchInput = document.getElementById('searchInput') as HTMLInputElement;
 const typeFilter = document.getElementById('typeFilter') as HTMLSelectElement;
+const statusTabBtns = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-status-tab]'));
 const newGroupBtn = document.getElementById('newGroupBtn') as HTMLButtonElement;
 const settingsBtn = document.getElementById('settingsBtn') as HTMLButtonElement;
 const editDialog = document.getElementById('editDialog') as HTMLDialogElement;
@@ -79,6 +82,7 @@ let draggedRecordId: string | null = null;
 let dragScrollSpeed = 0;
 let dragScrollFrame: number | null = null;
 let visibleEntryCount = PAGE_SIZE;
+let selectedStatus: WatchStatus | 'all' = 'continue';
 
 function displayTitle(record: WatchRecord): string {
   return record.manualTitle || record.title || record.rawTitle || record.url;
@@ -167,11 +171,19 @@ function isRecordComplete(record: WatchRecord): boolean {
   return ratio >= 0.9 || (ratio >= 0.85 && remainingSec <= 60);
 }
 
+function getWatchStatus(record: WatchRecord): WatchStatus {
+  if (record.manualStatus === 'continue' || record.manualStatus === 'finished') {
+    return record.manualStatus;
+  }
+
+  return isRecordComplete(record) ? 'finished' : 'continue';
+}
+
 function recordMeta(record: WatchRecord): string[] {
   const season = displaySeason(record);
   const episode = displayEpisode(record);
   const meta = [
-    isRecordComplete(record) ? 'Finished' : formatDuration(record.lastPlaybackTime ?? record.durationSec),
+    getWatchStatus(record) === 'finished' ? 'Finished' : formatDuration(record.lastPlaybackTime ?? record.durationSec),
     formatDate(record.startedAt),
     record.syncStatus === 'failed' ? 'Sync failed' : ''
   ];
@@ -189,6 +201,7 @@ function getFilteredRecords(): WatchRecord[] {
   return allRecords
     .filter((record) => !record.deletedAt)
     .filter((record) => selectedType === 'all' || displayMediaType(record) === selectedType)
+    .filter((record) => selectedStatus === 'all' || getWatchStatus(record) === selectedStatus)
     .filter((record) => {
       if (!query) return true;
       const haystack = normalizeText([
@@ -447,6 +460,8 @@ function renderRecord(record: WatchRecord): HTMLElement {
   const openBtn = node.querySelector('.open-record-btn') as HTMLButtonElement;
   const editBtn = node.querySelector('.edit-record-btn') as HTMLButtonElement;
   const deleteBtn = node.querySelector('.delete-record-btn') as HTMLButtonElement;
+  const statusBtn = node.querySelector('.status-record-btn') as HTMLButtonElement;
+  const watchStatus = getWatchStatus(record);
 
   node.dataset.recordId = record.id;
   node.addEventListener('dragstart', (event) => {
@@ -469,7 +484,7 @@ function renderRecord(record: WatchRecord): HTMLElement {
   meta.textContent = recordMeta(record).join(' · ');
 
   openBtn.addEventListener('click', () => {
-    const resumeAtSec = isRecordComplete(record) ? 0 : record.lastPlaybackTime ?? 0;
+    const resumeAtSec = getWatchStatus(record) === 'finished' ? 0 : record.lastPlaybackTime ?? 0;
     void chrome.runtime.sendMessage({
       type: 'openWithResume',
       url: record.url,
@@ -477,6 +492,13 @@ function renderRecord(record: WatchRecord): HTMLElement {
     });
   });
   editBtn.addEventListener('click', () => openRecordEditor(record));
+  statusBtn.title = watchStatus === 'finished' ? 'Move to Continue' : 'Mark finished';
+  statusBtn.classList.toggle('finished', watchStatus === 'finished');
+  const statusIcon = statusBtn.querySelector('.material-symbols-outlined') as HTMLElement;
+  statusIcon.textContent = watchStatus === 'finished' ? 'replay' : 'done_all';
+  statusBtn.addEventListener('click', () => {
+    void updateRecordWatchStatus(record, watchStatus === 'finished' ? 'continue' : 'finished');
+  });
   deleteBtn.addEventListener('click', () => {
     void deleteRecord(record);
   });
@@ -493,7 +515,13 @@ function formatGroupMeta(group: WatchGroup): string {
       ? `Season ${seasons[0]}`
       : `Seasons ${seasons.join(', ')}`;
 
-  return `${seasonLabel} · ${group.records.length} records · latest ${formatDate(group.latestAt)}`;
+  const finishedCount = group.records.filter((record) => getWatchStatus(record) === 'finished').length;
+  const continueCount = group.records.length - finishedCount;
+  const counts = selectedStatus === 'all'
+    ? `${continueCount} continue · ${finishedCount} finished`
+    : `${group.records.length} records`;
+
+  return `${seasonLabel} · ${counts} · latest ${formatDate(group.latestAt)}`;
 }
 
 function renderSingleSection(records: WatchRecord[]): HTMLElement {
@@ -697,7 +725,8 @@ async function updateRecord(record: WatchRecord, reset = false): Promise<void> {
         manualMediaType: null,
         manualSeason: null,
         manualEpisode: null,
-        manualGroupTitle: null
+        manualGroupTitle: null,
+        manualStatus: null
       }
     : {
         manualTitle: titleInput.value,
@@ -746,6 +775,22 @@ async function saveEditor(reset = false): Promise<void> {
   } catch (error) {
     dialogHint.textContent = error instanceof Error ? error.message : 'Save failed';
   }
+}
+
+async function updateRecordWatchStatus(record: WatchRecord, status: WatchStatus): Promise<void> {
+  const response = (await chrome.runtime.sendMessage({
+    type: 'updateRecord',
+    id: record.id,
+    patch: { manualStatus: status }
+  })) as { ok: boolean; history?: WatchRecord[]; error?: string };
+
+  if (!response?.ok) {
+    statusTextEl.textContent = response?.error || 'Status update failed';
+    return;
+  }
+
+  allRecords = response.history || allRecords;
+  render();
 }
 
 async function deleteRecord(record: WatchRecord): Promise<void> {
@@ -809,6 +854,16 @@ typeFilter.addEventListener('change', () => {
   resetPagination();
   render();
 });
+for (const button of statusTabBtns) {
+  button.addEventListener('click', () => {
+    selectedStatus = button.dataset.statusTab as WatchStatus | 'all';
+    for (const tab of statusTabBtns) {
+      tab.classList.toggle('active', tab === button);
+    }
+    resetPagination();
+    render();
+  });
+}
 newGroupBtn.addEventListener('click', () => {
   newGroupNameInput.value = '';
   newGroupTypeInput.value = typeFilter.value === 'all' ? 'anime' : typeFilter.value;

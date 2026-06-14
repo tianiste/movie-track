@@ -56,6 +56,7 @@ select {
 
 .library-header,
 .toolbar,
+.status-tabs,
 .group-card,
 .edit-dialog {
   border: 1px solid rgba(199, 153, 255, 0.12);
@@ -126,6 +127,35 @@ select {
 
 .toolbar-btn {
   min-height: 42px;
+}
+
+.status-tabs {
+  border-radius: 12px;
+  padding: 6px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.status-tab {
+  min-height: 40px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--on-surface-variant);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.status-tab:hover {
+  background: var(--surface-container-high);
+  color: var(--on-surface);
+}
+
+.status-tab.active {
+  border-color: rgba(199, 153, 255, 0.25);
+  background: var(--surface-container-highest);
+  color: var(--primary);
 }
 
 .groups {
@@ -247,6 +277,14 @@ select {
 
 .danger-btn {
   color: var(--error);
+}
+
+.status-record-btn {
+  color: #7ee2ad;
+}
+
+.status-record-btn.finished {
+  color: var(--primary);
 }
 
 .toggle-group-btn .material-symbols-outlined {
@@ -410,6 +448,7 @@ select {
   }
 
   .toolbar,
+  .status-tabs,
   .number-grid {
     grid-template-columns: 1fr;
   }
@@ -417,7 +456,7 @@ select {
   .group-actions,
   .record-actions {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .icon-text-btn {

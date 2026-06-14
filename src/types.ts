@@ -1,5 +1,6 @@
 export type MediaType = 'anime' | 'movie' | 'youtube' | 'unknown';
 export type SyncStatus = 'pending' | 'syncing' | 'synced' | 'failed';
+export type WatchStatus = 'continue' | 'finished';
 
 export interface AuthUser {
   id: string;
@@ -35,6 +36,7 @@ export interface WatchRecord {
   manualSeason?: number | null;
   manualEpisode?: number | null;
   manualGroupTitle?: string | null;
+  manualStatus?: WatchStatus | null;
   deletedAt?: number | null;
   identityKey?: string;
   syncStatus?: SyncStatus;

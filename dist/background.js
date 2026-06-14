@@ -329,6 +329,7 @@ function toCloudRecord(record, userId) {
         manual_season: withIdentity.manualSeason ?? null,
         manual_episode: withIdentity.manualEpisode ?? null,
         manual_group_title: withIdentity.manualGroupTitle ?? null,
+        manual_status: withIdentity.manualStatus ?? null,
         deleted_at: withIdentity.deletedAt ? dateFromMillis(withIdentity.deletedAt) : null,
         identity_key: withIdentity.identityKey
     };
@@ -355,6 +356,7 @@ function fromCloudRecord(record) {
         manualSeason: record.manual_season,
         manualEpisode: record.manual_episode,
         manualGroupTitle: record.manual_group_title,
+        manualStatus: record.manual_status,
         deletedAt: record.deleted_at ? millisFromDate(record.deleted_at) : null,
         identityKey: record.identity_key,
         syncStatus: 'synced',
@@ -394,6 +396,7 @@ function mergeForCloud(base, incoming) {
         output.manualSeason = next.manualSeason ?? null;
         output.manualEpisode = next.manualEpisode ?? null;
         output.manualGroupTitle = next.manualGroupTitle ?? null;
+        output.manualStatus = next.manualStatus ?? null;
         output.deletedAt = next.deletedAt ?? null;
     }
     output.url = next.url || output.url;
@@ -895,6 +898,7 @@ function mergeIntoRecord(base, incoming) {
         base.manualSeason = incoming.manualSeason ?? null;
         base.manualEpisode = incoming.manualEpisode ?? null;
         base.manualGroupTitle = incoming.manualGroupTitle ?? null;
+        base.manualStatus = incoming.manualStatus ?? null;
         base.deletedAt = incoming.deletedAt ?? null;
     }
     base.url = incoming.url;
@@ -981,6 +985,11 @@ function normalizeRecordPatch(patch) {
     if ('manualGroupTitle' in patch) {
         const value = typeof patch.manualGroupTitle === 'string' ? patch.manualGroupTitle.trim() : '';
         next.manualGroupTitle = value || null;
+    }
+    if ('manualStatus' in patch) {
+        next.manualStatus = patch.manualStatus === 'continue' || patch.manualStatus === 'finished'
+            ? patch.manualStatus
+            : null;
     }
     return next;
 }

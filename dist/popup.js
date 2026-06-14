@@ -9,6 +9,7 @@ const filterDrawerEl = document.getElementById('filterDrawer');
 const searchFilterEl = document.getElementById('searchFilter');
 const dateFilterEl = document.getElementById('dateFilter');
 const filterEl = document.getElementById('typeFilter');
+const statusFilterEl = document.getElementById('statusFilter');
 const exportBtn = document.getElementById('exportBtn');
 const clearBtn = document.getElementById('clearBtn');
 const libraryBtn = document.getElementById('libraryBtn');
@@ -100,6 +101,12 @@ function isRecordComplete(record) {
     }
     const remainingSec = Math.max(0, duration - watched);
     return ratio >= 0.9 || (ratio >= 0.85 && remainingSec <= 60);
+}
+function getWatchStatus(record) {
+    if (record.manualStatus === 'continue' || record.manualStatus === 'finished') {
+        return record.manualStatus;
+    }
+    return isRecordComplete(record) ? 'finished' : 'continue';
 }
 function parseSeasonHint(text) {
     const seasonPatterns = [
@@ -195,7 +202,8 @@ async function updateRecord(record, reset = false) {
             manualTitle: null,
             manualMediaType: null,
             manualSeason: null,
-            manualEpisode: null
+            manualEpisode: null,
+            manualStatus: null
         }
         : {
             manualTitle: titleInput.value,
@@ -297,6 +305,7 @@ function setFilterDrawerOpen(open) {
 }
 function getFilteredRecords() {
     const type = filterEl.value;
+    const status = statusFilterEl.value;
     const searchValue = normalizeFilterText(searchFilterEl.value);
     const dateValue = dateFilterEl.value;
     const sorted = allRecords
@@ -305,6 +314,9 @@ function getFilteredRecords() {
     return sorted.filter((record) => {
         const mediaType = record.manualMediaType ?? record.mediaType;
         if (type !== 'all' && mediaType !== type) {
+            return false;
+        }
+        if (status !== 'all' && getWatchStatus(record) !== status) {
             return false;
         }
         if (dateValue && toDateInputValue(record.startedAt) !== dateValue) {
@@ -327,7 +339,22 @@ function getFilteredRecords() {
     });
 }
 function hasActiveFilters() {
-    return filterEl.value !== 'all' || Boolean(searchFilterEl.value.trim()) || Boolean(dateFilterEl.value);
+    return filterEl.value !== 'all' || statusFilterEl.value !== 'all' || Boolean(searchFilterEl.value.trim()) || Boolean(dateFilterEl.value);
+}
+async function updateRecordStatus(record, status) {
+    const response = (await chrome.runtime.sendMessage({
+        type: 'updateRecord',
+        id: record.id,
+        patch: { manualStatus: status }
+    }));
+    if (!response?.ok) {
+        syncStatusTextEl.textContent = response?.error || 'Status update failed';
+        return false;
+    }
+    allRecords = response.history || allRecords;
+    totalRecordCount = null;
+    totalDurationSec = null;
+    return true;
 }
 async function deleteRecord(record, ask = true) {
     if (ask && !confirm(`Delete "${record.manualTitle || record.title || record.rawTitle || record.url}"?`)) {
@@ -367,13 +394,15 @@ function renderRecordCard(item) {
     const urlEl = node.querySelector('.card-url');
     const linkEl = node.querySelector('.open-btn');
     const editBtn = node.querySelector('.edit-record-btn');
+    const statusBtn = node.querySelector('.status-record-btn');
     const deleteBtn = node.querySelector('.delete-record-btn');
     const metaContainer = node.querySelector('.card-meta');
     const progressBar = node.querySelector('.progress-bar');
     const mediaType = item.mediaType;
     const watchedSeconds = Math.max(0, record.lastPlaybackTime ?? 0);
     const videoDurationSec = (record.videoDurationSec ?? 0) > 0 ? record.videoDurationSec : null;
-    const isComplete = isRecordComplete(record);
+    const watchStatus = getWatchStatus(record);
+    const isComplete = watchStatus === 'finished';
     badgeEl.textContent = mediaType.toUpperCase();
     badgeEl.className = `badge ${mediaType}`;
     titleEl.textContent = item.title;
@@ -396,6 +425,17 @@ function renderRecordCard(item) {
         });
     });
     editBtn.addEventListener('click', () => openRecordEditor(record));
+    statusBtn.title = isComplete ? 'Move to Continue' : 'Mark finished';
+    statusBtn.classList.toggle('finished', isComplete);
+    const statusIcon = statusBtn.querySelector('.material-symbols-outlined');
+    statusIcon.textContent = isComplete ? 'replay' : 'done_all';
+    statusBtn.addEventListener('click', () => {
+        void updateRecordStatus(record, isComplete ? 'continue' : 'finished').then((updated) => {
+            if (updated) {
+                render();
+            }
+        });
+    });
     const metaItems = metaContainer.querySelectorAll('.meta-item');
     if (metaItems[0]) {
         const metaText = metaItems[0].querySelector('.meta-text');
@@ -687,6 +727,10 @@ async function loadAuthStatus() {
     setAuthUiState(response);
 }
 filterEl.addEventListener('change', () => {
+    resetPagination();
+    render();
+});
+statusFilterEl.addEventListener('change', () => {
     resetPagination();
     render();
 });

@@ -1,5 +1,5 @@
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from './config.js';
-import type { AuthSession, AuthUser, MediaType, WatchRecord } from './types.js';
+import type { AuthSession, AuthUser, MediaType, WatchRecord, WatchStatus } from './types.js';
 
 const HISTORY_KEY = 'watchHistory';
 const ENABLED_KEY = 'trackingEnabled';
@@ -71,6 +71,7 @@ interface CloudWatchRecord {
   manual_season: number | null;
   manual_episode: number | null;
   manual_group_title: string | null;
+  manual_status: WatchStatus | null;
   deleted_at: string | null;
   identity_key: string;
   updated_at: string;
@@ -454,6 +455,7 @@ function toCloudRecord(record: WatchRecord, userId: string): Omit<CloudWatchReco
     manual_season: withIdentity.manualSeason ?? null,
     manual_episode: withIdentity.manualEpisode ?? null,
     manual_group_title: withIdentity.manualGroupTitle ?? null,
+    manual_status: withIdentity.manualStatus ?? null,
     deleted_at: withIdentity.deletedAt ? dateFromMillis(withIdentity.deletedAt) : null,
     identity_key: withIdentity.identityKey as string
   };
@@ -481,6 +483,7 @@ function fromCloudRecord(record: CloudWatchRecord): WatchRecord {
     manualSeason: record.manual_season,
     manualEpisode: record.manual_episode,
     manualGroupTitle: record.manual_group_title,
+    manualStatus: record.manual_status,
     deletedAt: record.deleted_at ? millisFromDate(record.deleted_at) : null,
     identityKey: record.identity_key,
     syncStatus: 'synced',
@@ -525,6 +528,7 @@ function mergeForCloud(base: WatchRecord, incoming: WatchRecord): WatchRecord {
     output.manualSeason = next.manualSeason ?? null;
     output.manualEpisode = next.manualEpisode ?? null;
     output.manualGroupTitle = next.manualGroupTitle ?? null;
+    output.manualStatus = next.manualStatus ?? null;
     output.deletedAt = next.deletedAt ?? null;
   }
 
@@ -1111,6 +1115,7 @@ function mergeIntoRecord(base: WatchRecord, incoming: WatchRecord): WatchRecord 
     base.manualSeason = incoming.manualSeason ?? null;
     base.manualEpisode = incoming.manualEpisode ?? null;
     base.manualGroupTitle = incoming.manualGroupTitle ?? null;
+    base.manualStatus = incoming.manualStatus ?? null;
     base.deletedAt = incoming.deletedAt ?? null;
   }
 
@@ -1187,7 +1192,7 @@ function compactHistory(history: WatchRecord[]): WatchRecord[] {
   return orderedKeys.map((key) => byKey.get(key) as WatchRecord);
 }
 
-type RecordPatch = Partial<Pick<WatchRecord, 'manualTitle' | 'manualMediaType' | 'manualSeason' | 'manualEpisode' | 'manualGroupTitle'>>;
+type RecordPatch = Partial<Pick<WatchRecord, 'manualTitle' | 'manualMediaType' | 'manualSeason' | 'manualEpisode' | 'manualGroupTitle' | 'manualStatus'>>;
 
 function normalizeRecordPatch(patch: RecordPatch): RecordPatch {
   const next: RecordPatch = {};
@@ -1214,6 +1219,12 @@ function normalizeRecordPatch(patch: RecordPatch): RecordPatch {
   if ('manualGroupTitle' in patch) {
     const value = typeof patch.manualGroupTitle === 'string' ? patch.manualGroupTitle.trim() : '';
     next.manualGroupTitle = value || null;
+  }
+
+  if ('manualStatus' in patch) {
+    next.manualStatus = patch.manualStatus === 'continue' || patch.manualStatus === 'finished'
+      ? patch.manualStatus
+      : null;
   }
 
   return next;

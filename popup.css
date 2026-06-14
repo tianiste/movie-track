@@ -404,7 +404,7 @@ h1, h2, h3, h4 {
 }
 
 .filter-drawer.open {
-  max-height: 240px;
+  max-height: 320px;
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
@@ -412,7 +412,7 @@ h1, h2, h3, h4 {
 
 .filter-grid {
   display: grid;
-  grid-template-columns: 1.2fr 0.8fr 1fr;
+  grid-template-columns: 1.2fr 0.8fr 1fr 1fr;
   gap: 10px;
   margin-top: 10px;
   padding: 12px;
@@ -750,6 +750,7 @@ h1, h2, h3, h4 {
 
 .open-btn,
 .edit-record-btn,
+.status-record-btn,
 .delete-record-btn {
   background: rgba(199, 153, 255, 0.1);
   color: var(--primary);
@@ -773,6 +774,21 @@ h1, h2, h3, h4 {
   background: rgba(199, 153, 255, 0.2);
 }
 
+.status-record-btn {
+  background: rgba(82, 220, 154, 0.08);
+  color: #7ee2ad;
+}
+
+.status-record-btn.finished {
+  background: rgba(199, 153, 255, 0.1);
+  color: var(--primary);
+}
+
+.status-record-btn:hover,
+.status-record-btn.finished:hover {
+  background: rgba(199, 153, 255, 0.2);
+}
+
 .delete-record-btn {
   background: rgba(255, 110, 132, 0.08);
   color: var(--error);
@@ -784,12 +800,14 @@ h1, h2, h3, h4 {
 
 .open-btn:active,
 .edit-record-btn:active,
+.status-record-btn:active,
 .delete-record-btn:active {
   transform: scale(0.9);
 }
 
 .open-btn .material-symbols-outlined,
 .edit-record-btn .material-symbols-outlined,
+.status-record-btn .material-symbols-outlined,
 .delete-record-btn .material-symbols-outlined {
   font-size: 16px;
 }

@@ -112,6 +112,15 @@
               <option value="unknown">Unknown</option>
             </select>
           </label>
+
+          <label class="filter-field">
+            <span class="filter-label">Status</span>
+            <select id="statusFilter" class="filter-select">
+              <option value="continue">Continue</option>
+              <option value="finished">Finished</option>
+              <option value="all">All Statuses</option>
+            </select>
+          </label>
         </div>
       </section>
 
@@ -139,6 +148,9 @@
             </a>
             <button class="edit-record-btn" type="button" title="Edit record">
               <span class="material-symbols-outlined">edit</span>
+            </button>
+            <button class="status-record-btn" type="button" title="Change watch status">
+              <span class="material-symbols-outlined">done_all</span>
             </button>
             <button class="delete-record-btn" type="button" title="Delete record">
               <span class="material-symbols-outlined">delete</span>
