@@ -1303,6 +1303,25 @@ async function refreshHistoryFromCloud(): Promise<WatchRecord[]> {
   return merged;
 }
 
+async function getHistoryWithCloudFallback(): Promise<WatchRecord[]> {
+  const history = await getStorage<WatchRecord[]>(HISTORY_KEY, []);
+  const compacted = compactHistory(history);
+  const changed = compacted.length !== history.length;
+  if (changed) {
+    await setStorage(HISTORY_KEY, compacted);
+  }
+
+  if (compacted.some((record) => !record.deletedAt)) {
+    return compacted;
+  }
+
+  try {
+    return await refreshHistoryFromCloud();
+  } catch {
+    return compacted;
+  }
+}
+
 async function saveRecord(record: WatchRecord): Promise<void> {
   if (!shouldSaveRecord(record)) {
     console.debug(`[MovieTrack] Skipped short record (${record.durationSec}s):`, record.title);
@@ -1602,12 +1621,7 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
 
     if (payload?.type === 'getHistory') {
       const enabled = await isTrackingEnabled();
-      const history = await getStorage<WatchRecord[]>(HISTORY_KEY, []);
-      const compacted = compactHistory(history);
-      const changed = compacted.length !== history.length;
-      if (changed) {
-        await setStorage(HISTORY_KEY, compacted);
-      }
+      const compacted = await getHistoryWithCloudFallback();
 
       sendResponse({ ok: true, history: compacted, enabled });
       return;
@@ -1617,12 +1631,7 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
       const enabled = await isTrackingEnabled();
       const offset = Math.max(0, Math.round(payload.offset ?? 0));
       const limit = Math.min(200, Math.max(1, Math.round(payload.limit ?? 50)));
-      const history = await getStorage<WatchRecord[]>(HISTORY_KEY, []);
-      const compacted = compactHistory(history);
-      const changed = compacted.length !== history.length;
-      if (changed) {
-        await setStorage(HISTORY_KEY, compacted);
-      }
+      const compacted = await getHistoryWithCloudFallback();
 
       const visible = compacted.filter((record) => !record.deletedAt).sort((a, b) => b.startedAt - a.startedAt);
       sendResponse({
