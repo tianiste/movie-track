@@ -89,7 +89,7 @@ function formatDate(timestamp) {
     return new Date(timestamp).toLocaleDateString();
 }
 function formatSeasonHeading(season) {
-    return season === null ? 'No season' : `Season ${season}`;
+    return season === null ? 'Episodes' : `Season ${season}`;
 }
 function getWatchRatio(record) {
     const watched = record.lastPlaybackTime ?? 0;
@@ -159,7 +159,7 @@ function getGroupTitle(record) {
     if (customTitle) {
         return { title: customTitle, custom: true };
     }
-    if (displaySeason(record) === null) {
+    if (displaySeason(record) === null && displayEpisode(record) === null) {
         return null;
     }
     return { title: inferGroupTitle(record), custom: false };
@@ -401,8 +401,9 @@ function renderRecord(record) {
 function formatGroupMeta(group) {
     const seasons = [...new Set(group.records.map(displaySeason).filter((season) => season !== null))]
         .sort((a, b) => a - b);
+    const hasEpisodeOnlyRecords = group.records.some((record) => displaySeason(record) === null && displayEpisode(record) !== null);
     const seasonLabel = seasons.length === 0
-        ? 'Custom group'
+        ? group.custom && !hasEpisodeOnlyRecords ? 'Custom group' : 'Episodes only'
         : seasons.length === 1
             ? `Season ${seasons[0]}`
             : `Seasons ${seasons.join(', ')}`;

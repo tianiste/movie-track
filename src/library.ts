@@ -147,7 +147,7 @@ function formatDate(timestamp: number): string {
 }
 
 function formatSeasonHeading(season: number | null): string {
-  return season === null ? 'No season' : `Season ${season}`;
+  return season === null ? 'Episodes' : `Season ${season}`;
 }
 
 function getWatchRatio(record: WatchRecord): number | null {
@@ -227,7 +227,7 @@ function getGroupTitle(record: WatchRecord): { title: string; custom: boolean } 
     return { title: customTitle, custom: true };
   }
 
-  if (displaySeason(record) === null) {
+  if (displaySeason(record) === null && displayEpisode(record) === null) {
     return null;
   }
 
@@ -509,8 +509,9 @@ function renderRecord(record: WatchRecord): HTMLElement {
 function formatGroupMeta(group: WatchGroup): string {
   const seasons = [...new Set(group.records.map(displaySeason).filter((season): season is number => season !== null))]
     .sort((a, b) => a - b);
+  const hasEpisodeOnlyRecords = group.records.some((record) => displaySeason(record) === null && displayEpisode(record) !== null);
   const seasonLabel = seasons.length === 0
-    ? 'Custom group'
+    ? group.custom && !hasEpisodeOnlyRecords ? 'Custom group' : 'Episodes only'
     : seasons.length === 1
       ? `Season ${seasons[0]}`
       : `Seasons ${seasons.join(', ')}`;

@@ -353,7 +353,7 @@ function groupSeasonRecords(items: DisplayRecord[]): { groups: PopupGroup[]; sin
   const singles: DisplayRecord[] = [];
 
   for (const item of items) {
-    if (item.season === null) {
+    if (item.season === null && item.episode === null) {
       singles.push(item);
       continue;
     }
@@ -409,7 +409,7 @@ function formatGroupSeasonSummary(group: PopupGroup): string {
   const latest = [...group.records].sort((a, b) => b.record.startedAt - a.record.startedAt)[0];
   const latestEpisode = latest?.episode !== null && latest?.episode !== undefined ? `latest E${latest.episode}` : '';
   const seasonLabel = seasons.length === 0
-    ? 'No season'
+    ? 'Episodes only'
     : seasons.length === 1
       ? `Season ${seasons[0]}`
       : `Seasons ${seasons.join(', ')}`;
@@ -695,7 +695,7 @@ function renderSeasonGroup(group: PopupGroup): HTMLElement {
 
       const seasonTitle = document.createElement('p');
       seasonTitle.className = 'popup-season-title';
-      seasonTitle.textContent = seasonKey === 'unknown' ? 'No season' : `Season ${Number(seasonKey)}`;
+      seasonTitle.textContent = seasonKey === 'unknown' ? 'Episodes' : `Season ${Number(seasonKey)}`;
       seasonEl.append(seasonTitle);
 
       for (const item of seasonRecords) {
