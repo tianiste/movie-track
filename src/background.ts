@@ -710,12 +710,61 @@ function getStoredWatchUrl(urlString: string): string {
   return url.toString();
 }
 
-function normalizeTitle(title = ''): string {
-  return title
+function normalizeSiteLabel(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/^www\./, '')
+    .replace(/\.(com|net|org|to|tv|se|io|gg|app)$/i, '')
+    .replace(/[^a-z0-9]+/g, '');
+}
+
+function getTitleFromUrlSlug(urlString: string): string {
+  const url = parseUrl(urlString);
+  if (!url) {
+    return '';
+  }
+
+  const slug = url.pathname
+    .split('/')
+    .filter(Boolean)
+    .pop() ?? '';
+  return slug
+    .replace(/-[a-z0-9]{4,}$/i, '')
+    .replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+    .trim();
+}
+
+function normalizeTitle(title = '', urlString = ''): string {
+  const parsedUrl = parseUrl(urlString);
+  const siteLabel = parsedUrl ? normalizeSiteLabel(parsedUrl.hostname) : '';
+  let value = title.trim();
+
+  if (siteLabel && /\s[-|:]\s/.test(value)) {
+    const delimiterMatch = value.match(/\s([-|:])\s/);
+    const delimiter = delimiterMatch?.[1];
+    if (delimiter) {
+      const parts = value.split(new RegExp(`\\s\\${delimiter}\\s`)).map((part) => part.trim()).filter(Boolean);
+      const first = parts[0] ?? '';
+      const last = parts[parts.length - 1] ?? '';
+      if (normalizeSiteLabel(first) === siteLabel && parts.length > 1) {
+        value = parts.slice(1).join(` ${delimiter} `);
+      } else if (normalizeSiteLabel(last) === siteLabel && parts.length > 1) {
+        value = parts.slice(0, -1).join(` ${delimiter} `);
+      }
+    }
+  }
+
+  value = value
     .replace(/\s*\|\s*[^|]+$/g, '')
     .replace(/\s+-\s+[^-]+$/g, '')
+    .replace(/\bWatch\s+Anime\s+Online\b/gi, '')
+    .replace(/\bWatch\s+Online(?:\s+Free)?\b/gi, '')
+    .replace(/\bin\s+HD\b/gi, '')
     .replace(/\s+/g, ' ')
     .trim();
+
+  return value || getTitleFromUrlSlug(urlString);
 }
 
 function normalizeIdentityTitle(title = ''): string {
@@ -900,7 +949,7 @@ function inferMedia(tab: chrome.tabs.Tab): InferredMedia | null {
     mediaType = 'movie';
   }
 
-  const cleanedTitle = normalizeTitle(title) || title || url;
+  const cleanedTitle = normalizeTitle(title, url) || title || url;
   const titleHint = parseEpisodeHint(title);
   const titleSeason = parseSeasonHint(title);
   const urlHint = parseEpisodeHintFromUrl(url);
