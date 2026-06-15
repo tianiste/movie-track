@@ -2,6 +2,28 @@
 
 All notable changes to MovieTrack are documented here.
 
+## 0.1.5 - 2026-06-15
+
+### Added
+
+- Continue, Finished, and All status filters in the popup and Library.
+- Manual watch status controls to move records between Continue and Finished.
+- Episode-only grouping for shows without seasons.
+- Popup record editing controls.
+
+### Changed
+
+- Current active watch sessions are saved while watching, so records appear sooner.
+- Popup and Library history render with pagination for better performance.
+- Title cleanup handles site-prefixed pages like AnimeSalt.
+- Duplicate watch records merge more accurately.
+
+### Fixed
+
+- Restored cloud history fallback when local history is empty.
+- Fixed GitHub/manual package builds so they keep a stable extension ID.
+- Fixed AnimeSalt title detection for pages like `AnimeSalt - Monster Eater Watch Anime Online`.
+
 ## 0.1.4 - 2026-06-14
 
 ### Fixed
