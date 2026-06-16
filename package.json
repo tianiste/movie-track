@@ -6,6 +6,7 @@
   "scripts": {
     "clean": "rm -rf dist",
     "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test tests/*.test.mjs",
     "package:webstore": "node scripts/package-extension.js webstore && npm run verify:webstore",
     "package:github": "node scripts/package-extension.js github && npm run verify:github",
     "verify:publish": "npm run typecheck && npm run package:webstore && node scripts/verify-publish-ready.js",

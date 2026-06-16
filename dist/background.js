@@ -1,4 +1,5 @@
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from './config.js';
+import { getFilteredHistory } from './historyFilters.js';
 const HISTORY_KEY = 'watchHistory';
 const ENABLED_KEY = 'trackingEnabled';
 const HEARTBEAT_ALARM = 'heartbeat';
@@ -300,13 +301,6 @@ function dateFromMillis(timestamp) {
 function millisFromDate(value) {
     const parsed = Date.parse(value);
     return Number.isFinite(parsed) ? parsed : Date.now();
-}
-function toDateInputValue(timestamp) {
-    const dt = new Date(timestamp);
-    const year = dt.getFullYear();
-    const month = String(dt.getMonth() + 1).padStart(2, '0');
-    const day = String(dt.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
 }
 function ensureRecordIdentity(record) {
     const identityKey = record.identityKey || getRecordIdentity(record);
@@ -831,12 +825,6 @@ function isRecordComplete(record) {
     const remainingSec = Math.max(0, duration - watched);
     return ratio >= COMPLETE_RATIO || (ratio >= COMPLETE_NEAR_END_RATIO && remainingSec <= COMPLETE_NEAR_END_SEC);
 }
-function getWatchStatus(record) {
-    if (record.manualStatus === 'continue' || record.manualStatus === 'finished') {
-        return record.manualStatus;
-    }
-    return isRecordComplete(record) ? 'finished' : 'continue';
-}
 function shouldSaveRecord(record) {
     if (isRecordComplete(record)) {
         return true;
@@ -1196,44 +1184,6 @@ async function getHistoryWithCloudFallback() {
     catch {
         return compacted;
     }
-}
-function normalizeFilterText(value = '') {
-    return value.trim().toLowerCase();
-}
-function getFilteredHistory(history, query = {}) {
-    const type = query.type ?? 'all';
-    const status = query.status ?? 'all';
-    const searchValue = normalizeFilterText(query.search ?? '');
-    const dateValue = query.date ?? '';
-    return history
-        .filter((record) => !record.deletedAt)
-        .filter((record) => {
-        const mediaType = record.manualMediaType ?? record.mediaType;
-        if (type !== 'all' && mediaType !== type) {
-            return false;
-        }
-        if (status !== 'all' && getWatchStatus(record) !== status) {
-            return false;
-        }
-        if (dateValue && toDateInputValue(record.startedAt) !== dateValue) {
-            return false;
-        }
-        if (searchValue) {
-            const haystack = normalizeFilterText([
-                record.manualTitle,
-                record.title,
-                record.rawTitle,
-                record.manualMediaType,
-                record.hostname,
-                record.url
-            ].filter(Boolean).join(' '));
-            if (!haystack.includes(searchValue)) {
-                return false;
-            }
-        }
-        return true;
-    })
-        .sort((a, b) => b.startedAt - a.startedAt);
 }
 async function saveRecord(record) {
     if (!shouldSaveRecord(record)) {
