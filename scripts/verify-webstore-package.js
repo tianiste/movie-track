@@ -19,6 +19,7 @@ const requiredFiles = new Set([
   'dist/popup.js',
   'dist/options.js',
   'dist/library.js',
+  'dist/historyFilters.js',
   'dist/config.js',
   'dist/types.js'
 ]);
