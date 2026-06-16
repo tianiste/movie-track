@@ -144,7 +144,7 @@ h1, h2, h3, h4 {
 .topbar-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 /* Toggle */
@@ -155,13 +155,17 @@ h1, h2, h3, h4 {
   background: var(--surface-container-high);
   border: 1px solid var(--outline-variant);
   border-radius: 999px;
-  padding: 6px 12px;
+  padding: 6px 9px;
   cursor: pointer;
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1px;
   color: var(--on-surface-variant);
+}
+
+.allowlist-toggle {
+  padding-inline: 8px;
 }
 
 .toggle-input {

@@ -15,6 +15,7 @@ const clearBtn = document.getElementById('clearBtn');
 const libraryBtn = document.getElementById('libraryBtn');
 const settingsBtn = document.getElementById('settingsBtn');
 const enabledToggle = document.getElementById('enabledToggle');
+const allowlistToggle = document.getElementById('allowlistToggle');
 const consentCard = document.getElementById('consentCard');
 const acceptConsentBtn = document.getElementById('acceptConsentBtn');
 const privacyLinkBtn = document.getElementById('privacyLinkBtn');
@@ -36,6 +37,7 @@ let editingRecord = null;
 let isSignedIn = false;
 let hasPrivacyConsent = false;
 let hasHostAccess = false;
+let currentAllowlistHost = null;
 let isFilterDrawerOpen = false;
 let loadedRecordCount = 0;
 let historyRequestSeq = 0;
@@ -666,9 +668,17 @@ async function loadPrivacyStatus() {
     }
     hasPrivacyConsent = Boolean(response.consentAccepted);
     hasHostAccess = Boolean(response.hostAccessGranted);
+    currentAllowlistHost = response.currentHostname ?? null;
     consentCard.hidden = hasPrivacyConsent && hasHostAccess;
     enabledToggle.disabled = !hasPrivacyConsent || !hasHostAccess;
+    allowlistToggle.disabled = !hasPrivacyConsent || !hasHostAccess;
     enabledToggle.checked = Boolean(response.enabled);
+    allowlistToggle.checked = Boolean(response.allowlistEnabled);
+    allowlistToggle.title = response.allowlistEnabled
+        ? response.currentAllowed
+            ? `Only tracking allowed sites. ${currentAllowlistHost ?? 'Current site'} is allowed.`
+            : `Only tracking allowed sites. ${currentAllowlistHost ?? 'Current site'} is not allowed.`
+        : 'Track any site after consent and site access';
 }
 async function requestHostAccess() {
     return chrome.permissions.request({ origins: ['<all_urls>'] });
@@ -687,7 +697,9 @@ async function acceptPrivacyConsent() {
         hasHostAccess = Boolean(response.hostAccessGranted);
         consentCard.hidden = hasHostAccess;
         enabledToggle.disabled = !hasHostAccess;
+        allowlistToggle.disabled = !hasHostAccess;
         enabledToggle.checked = Boolean(response.enabled);
+        allowlistToggle.checked = Boolean(response.allowlistEnabled);
         await loadData();
     }
     else {
@@ -740,6 +752,21 @@ async function setEnabled(enabled) {
         enabledToggle.checked = false;
         syncStatusTextEl.textContent = response?.error || 'Tracking unavailable';
     }
+}
+async function setAllowlistEnabled(enabled) {
+    if (enabled && !hasPrivacyConsent) {
+        allowlistToggle.checked = false;
+        consentCard.hidden = false;
+        return;
+    }
+    const response = (await chrome.runtime.sendMessage({ type: 'setAllowlistEnabled', enabled }));
+    if (!response?.ok) {
+        allowlistToggle.checked = !enabled;
+        syncStatusTextEl.textContent = response?.error || 'Site allowlist unavailable';
+        return;
+    }
+    allowlistToggle.checked = enabled;
+    await loadPrivacyStatus();
 }
 function setAuthUiState(response) {
     isSignedIn = Boolean(response.signedIn);
@@ -820,6 +847,9 @@ exportBtn.addEventListener('click', () => {
 clearBtn.addEventListener('click', clearData);
 enabledToggle.addEventListener('change', () => {
     void setEnabled(enabledToggle.checked);
+});
+allowlistToggle.addEventListener('change', () => {
+    void setAllowlistEnabled(allowlistToggle.checked);
 });
 settingsBtn.addEventListener('click', () => {
     if (chrome.runtime.openOptionsPage) {

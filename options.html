@@ -82,6 +82,31 @@
         </div>
         <p class="muted">Tracking starts only after privacy consent, optional site access, active audible tab playback, and a readable video element.</p>
       </section>
+
+      <section class="settings-card">
+        <div class="section-heading">
+          <span class="material-symbols-outlined">rule</span>
+          <div>
+            <h2>Site Allowlist</h2>
+            <p id="allowlistStatusText">Loading site rules...</p>
+          </div>
+        </div>
+        <label class="switch-row">
+          <span>
+            <strong>Only track allowed sites</strong>
+            <small>When enabled, MovieTrack ignores active video tabs outside this list.</small>
+          </span>
+          <input id="allowlistEnabledToggle" type="checkbox" />
+        </label>
+        <div class="allowlist-actions">
+          <button id="addCurrentSiteBtn" class="action-btn primary-btn">Add current site</button>
+          <form id="addSiteForm" class="site-form">
+            <input id="siteInput" type="text" placeholder="example.com" autocomplete="off" />
+            <button class="action-btn" type="submit">Add site</button>
+          </form>
+        </div>
+        <div id="allowlistSites" class="site-list"></div>
+      </section>
     </main>
 
     <script src="dist/options.js" type="module"></script>

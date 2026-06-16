@@ -38,10 +38,20 @@ interface PrivacyStatusResponse {
   error?: string;
 }
 
+interface AllowlistStatusResponse {
+  ok: boolean;
+  enabled: boolean;
+  sites: string[];
+  currentHostname: string | null;
+  currentAllowed: boolean;
+  error?: string;
+}
+
 const accountStatusText = document.getElementById('accountStatusText') as HTMLElement;
 const syncStatusText = document.getElementById('syncStatusText') as HTMLElement;
 const localStatusText = document.getElementById('localStatusText') as HTMLElement;
 const trackingStatusText = document.getElementById('trackingStatusText') as HTMLElement;
+const allowlistStatusText = document.getElementById('allowlistStatusText') as HTMLElement;
 const signInBtn = document.getElementById('signInBtn') as HTMLButtonElement;
 const signOutBtn = document.getElementById('signOutBtn') as HTMLButtonElement;
 const syncLocalBtn = document.getElementById('syncLocalBtn') as HTMLButtonElement;
@@ -51,9 +61,16 @@ const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
 const clearLocalBtn = document.getElementById('clearLocalBtn') as HTMLButtonElement;
 const openPrivacyBtn = document.getElementById('openPrivacyBtn') as HTMLButtonElement;
 const openLibraryBtn = document.getElementById('openLibraryBtn') as HTMLButtonElement;
+const allowlistEnabledToggle = document.getElementById('allowlistEnabledToggle') as HTMLInputElement;
+const addCurrentSiteBtn = document.getElementById('addCurrentSiteBtn') as HTMLButtonElement;
+const addSiteForm = document.getElementById('addSiteForm') as HTMLFormElement;
+const siteInput = document.getElementById('siteInput') as HTMLInputElement;
+const allowlistSitesEl = document.getElementById('allowlistSites') as HTMLElement;
 
 let allRecords: WatchRecord[] = [];
 let isSignedIn = false;
+let allowlistSites: string[] = [];
+let currentAllowlistHostname: string | null = null;
 
 function formatHours(records: WatchRecord[]): string {
   const seconds = records.reduce((sum, record) => sum + Math.max(0, record.durationSec || 0), 0);
@@ -168,6 +185,87 @@ async function loadPrivacyStatus(): Promise<void> {
   }
 
   trackingStatusText.textContent = response.enabled ? 'Tracking is enabled' : 'Tracking is paused';
+}
+
+function renderAllowlistStatus(response: AllowlistStatusResponse): void {
+  allowlistSites = response.sites || [];
+  currentAllowlistHostname = response.currentHostname;
+  allowlistEnabledToggle.checked = Boolean(response.enabled);
+  addCurrentSiteBtn.disabled = !Boolean(response.currentHostname);
+  addCurrentSiteBtn.textContent = response.currentHostname ? `Add ${response.currentHostname}` : 'Add current site';
+  allowlistStatusText.textContent = response.enabled
+    ? `${allowlistSites.length} allowed ${allowlistSites.length === 1 ? 'site' : 'sites'}`
+    : 'Allowlist is off';
+
+  allowlistSitesEl.textContent = '';
+  if (allowlistSites.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'empty-sites';
+    empty.textContent = 'No sites added yet.';
+    allowlistSitesEl.append(empty);
+    return;
+  }
+
+  for (const site of allowlistSites) {
+    const row = document.createElement('div');
+    row.className = 'site-row';
+
+    const label = document.createElement('span');
+    label.textContent = site;
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'action-btn danger-btn';
+    removeBtn.type = 'button';
+    removeBtn.textContent = 'Remove';
+    removeBtn.addEventListener('click', () => {
+      void removeAllowlistSite(site);
+    });
+
+    row.append(label, removeBtn);
+    allowlistSitesEl.append(row);
+  }
+}
+
+async function loadAllowlistStatus(): Promise<void> {
+  const response = (await chrome.runtime.sendMessage({ type: 'getAllowlistStatus' })) as AllowlistStatusResponse;
+  if (!response?.ok) {
+    allowlistStatusText.textContent = response?.error || 'Site allowlist unavailable';
+    return;
+  }
+
+  renderAllowlistStatus(response);
+}
+
+async function setAllowlistEnabled(enabled: boolean): Promise<void> {
+  const response = (await chrome.runtime.sendMessage({ type: 'setAllowlistEnabled', enabled })) as AllowlistStatusResponse;
+  if (!response?.ok) {
+    allowlistEnabledToggle.checked = !enabled;
+    allowlistStatusText.textContent = response?.error || 'Could not update allowlist';
+    return;
+  }
+
+  renderAllowlistStatus(response);
+}
+
+async function addAllowlistSite(site?: string): Promise<void> {
+  const response = (await chrome.runtime.sendMessage({ type: 'addAllowlistSite', site })) as AllowlistStatusResponse;
+  if (!response?.ok) {
+    allowlistStatusText.textContent = response?.error || 'Could not add site';
+    return;
+  }
+
+  siteInput.value = '';
+  renderAllowlistStatus(response);
+}
+
+async function removeAllowlistSite(site: string): Promise<void> {
+  const response = (await chrome.runtime.sendMessage({ type: 'removeAllowlistSite', site })) as AllowlistStatusResponse;
+  if (!response?.ok) {
+    allowlistStatusText.textContent = response?.error || 'Could not remove site';
+    return;
+  }
+
+  renderAllowlistStatus(response);
 }
 
 async function signIn(): Promise<void> {
@@ -326,11 +424,22 @@ openPrivacyBtn.addEventListener('click', () => {
 openLibraryBtn.addEventListener('click', () => {
   void chrome.tabs.create({ url: chrome.runtime.getURL('library.html') });
 });
+allowlistEnabledToggle.addEventListener('change', () => {
+  void setAllowlistEnabled(allowlistEnabledToggle.checked);
+});
+addCurrentSiteBtn.addEventListener('click', () => {
+  void addAllowlistSite(currentAllowlistHostname ?? undefined);
+});
+addSiteForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  void addAllowlistSite(siteInput.value);
+});
 
 async function init(): Promise<void> {
   await loadAuthStatus();
   await loadHistory();
   await loadPrivacyStatus();
+  await loadAllowlistStatus();
 }
 
 void init();
