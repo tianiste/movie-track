@@ -342,6 +342,51 @@ async function saveCustomGroups(): Promise<void> {
   await chrome.storage.local.set({ [CUSTOM_GROUPS_KEY]: customGroups });
 }
 
+function findCustomGroupIndex(mediaType: MediaType, title: string): number {
+  const normalizedTitle = normalizeText(title);
+  return customGroups.findIndex((group) => group.mediaType === mediaType && normalizeText(group.title) === normalizedTitle);
+}
+
+async function saveGroupDefinitionEdit(group: WatchGroup, reset = false): Promise<void> {
+  if (!group.custom) {
+    return;
+  }
+
+  const existingIndex = findCustomGroupIndex(group.mediaType, group.title);
+  if (existingIndex < 0) {
+    return;
+  }
+
+  if (reset) {
+    customGroups = customGroups.filter((_, index) => index !== existingIndex);
+    await saveCustomGroups();
+    expandedGroupKeys.delete(group.key);
+    return;
+  }
+
+  const nextTitle = groupInput.value.trim();
+  const nextMediaType = mediaTypeInput.value as MediaType;
+  if (!nextTitle) {
+    customGroups = customGroups.filter((_, index) => index !== existingIndex);
+    await saveCustomGroups();
+    expandedGroupKeys.delete(group.key);
+    return;
+  }
+
+  const existingGroup = customGroups[existingIndex];
+  const duplicateIndex = findCustomGroupIndex(nextMediaType, nextTitle);
+  customGroups = customGroups
+    .filter((_, index) => index !== existingIndex && index !== duplicateIndex)
+    .concat({
+      title: nextTitle,
+      mediaType: nextMediaType,
+      createdAt: existingGroup.createdAt
+    });
+  await saveCustomGroups();
+  expandedGroupKeys.delete(group.key);
+  expandedGroupKeys.add(getGroupKey(nextMediaType, nextTitle));
+}
+
 function clearDragTargets(): void {
   document.querySelectorAll('.drag-over').forEach((element) => element.classList.remove('drag-over'));
 }
@@ -434,7 +479,7 @@ async function createCustomGroup(): Promise<void> {
   }
 
   const mediaType = newGroupTypeInput.value as MediaType;
-  const existing = customGroups.find((group) => group.mediaType === mediaType && normalizeText(group.title) === normalizeText(title));
+  const existing = findCustomGroupIndex(mediaType, title) >= 0;
   if (!existing) {
     customGroups = [
       ...customGroups,
@@ -767,6 +812,7 @@ async function saveEditor(reset = false): Promise<void> {
     if (editorMode.type === 'record') {
       await updateRecord(editorMode.record, reset);
     } else {
+      await saveGroupDefinitionEdit(editorMode.group, reset);
       for (const record of editorMode.group.records) {
         await updateRecord(record, reset);
       }
@@ -825,7 +871,7 @@ async function deleteGroup(group: WatchGroup): Promise<void> {
   }
 
   if (isEmptyCustomGroup) {
-    customGroups = customGroups.filter((item) => normalizeText(item.title) !== normalizeText(group.title));
+    customGroups = customGroups.filter((item) => item.mediaType !== group.mediaType || normalizeText(item.title) !== normalizeText(group.title));
     await saveCustomGroups();
     expandedGroupKeys.delete(group.key);
     render();
