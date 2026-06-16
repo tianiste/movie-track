@@ -77,6 +77,13 @@ interface PrivacyStatusResponse {
   error?: string;
 }
 
+interface HistoryQuery {
+  type: WatchRecord['mediaType'] | 'all';
+  status: WatchStatus | 'all';
+  search: string;
+  date: string;
+}
+
 const listEl = document.getElementById('list') as HTMLElement;
 const template = document.getElementById('rowTemplate') as HTMLTemplateElement;
 const totalItemsEl = document.getElementById('totalItems') as HTMLElement;
@@ -115,6 +122,8 @@ let isSignedIn = false;
 let hasPrivacyConsent = false;
 let hasHostAccess = false;
 let isFilterDrawerOpen = false;
+let loadedRecordCount = 0;
+let historyRequestSeq = 0;
 const expandedGroupKeys = new Set<string>();
 let visibleEntryCount = POPUP_PAGE_SIZE;
 
@@ -328,8 +337,7 @@ async function updateRecord(record: WatchRecord, reset = false): Promise<boolean
   }
 
   allRecords = response.history || allRecords;
-  totalRecordCount = null;
-  totalDurationSec = null;
+  resetLoadedTotals();
   return true;
 }
 
@@ -470,6 +478,21 @@ function hasActiveFilters(): boolean {
   return filterEl.value !== 'all' || statusFilterEl.value !== 'all' || Boolean(searchFilterEl.value.trim()) || Boolean(dateFilterEl.value);
 }
 
+function getHistoryQuery(): HistoryQuery {
+  return {
+    type: filterEl.value as HistoryQuery['type'],
+    status: statusFilterEl.value as HistoryQuery['status'],
+    search: searchFilterEl.value,
+    date: dateFilterEl.value
+  };
+}
+
+function resetLoadedTotals(): void {
+  loadedRecordCount = allRecords.filter((record) => !record.deletedAt).length;
+  totalRecordCount = null;
+  totalDurationSec = null;
+}
+
 async function updateRecordStatus(record: WatchRecord, status: WatchStatus | null): Promise<boolean> {
   const response = (await chrome.runtime.sendMessage({
     type: 'updateRecord',
@@ -483,8 +506,7 @@ async function updateRecordStatus(record: WatchRecord, status: WatchStatus | nul
   }
 
   allRecords = response.history || allRecords;
-  totalRecordCount = null;
-  totalDurationSec = null;
+  resetLoadedTotals();
   return true;
 }
 
@@ -504,8 +526,7 @@ async function deleteRecord(record: WatchRecord, ask = true): Promise<boolean> {
   }
 
   allRecords = response.history || allRecords.filter((item) => item.id !== record.id);
-  totalRecordCount = null;
-  totalDurationSec = null;
+  resetLoadedTotals();
   return true;
 }
 
@@ -710,14 +731,19 @@ function renderSeasonGroup(group: PopupGroup): HTMLElement {
   return groupEl;
 }
 
-function renderLoadMore(remainingCount: number): HTMLElement {
+function renderLoadMore(remainingCount: number, canRevealLoadedEntries: boolean): HTMLElement {
   const button = document.createElement('button');
   button.className = 'load-more-btn';
   button.type = 'button';
   button.textContent = `Load more (${remainingCount} left)`;
   button.addEventListener('click', () => {
-    visibleEntryCount += POPUP_PAGE_SIZE;
-    render();
+    if (canRevealLoadedEntries) {
+      visibleEntryCount += POPUP_PAGE_SIZE;
+      render();
+      return;
+    }
+
+    void loadMoreData();
   });
   return button;
 }
@@ -750,7 +776,9 @@ function render(): void {
     ...singles.map((item) => ({ type: 'single' as const, latestAt: item.record.startedAt, item }))
   ].sort((a, b) => b.latestAt - a.latestAt);
   const visibleEntries = entries.slice(0, visibleEntryCount);
-  const remainingEntries = entries.length - visibleEntries.length;
+  const remainingLoadedEntries = entries.length - visibleEntries.length;
+  const remainingRemoteRecords = Math.max(0, (totalRecordCount ?? allRecords.length) - loadedRecordCount);
+  const remainingEntries = remainingLoadedEntries + remainingRemoteRecords;
 
   const fragment = document.createDocumentFragment();
 
@@ -758,7 +786,7 @@ function render(): void {
     fragment.append(entry.type === 'group' ? renderSeasonGroup(entry.group) : renderRecordCard(entry.item));
   }
   if (remainingEntries > 0) {
-    fragment.append(renderLoadMore(remainingEntries));
+    fragment.append(renderLoadMore(remainingEntries, remainingLoadedEntries > 0));
   }
 
   listEl.append(fragment);
@@ -790,11 +818,14 @@ function renderSyncSummary(): void {
   syncStatusTextEl.textContent = 'Synced';
 }
 
-async function loadData(): Promise<void> {
+async function loadData(append = false): Promise<void> {
+  const requestSeq = ++historyRequestSeq;
+  const offset = append ? loadedRecordCount : 0;
   let response = (await chrome.runtime.sendMessage({
     type: 'getHistoryPage',
-    offset: 0,
-    limit: POPUP_HISTORY_LIMIT
+    offset,
+    limit: POPUP_HISTORY_LIMIT,
+    filters: getHistoryQuery()
   })) as GetHistoryResponse | undefined;
 
   if (!response?.ok) {
@@ -805,11 +836,22 @@ async function loadData(): Promise<void> {
     return;
   }
 
-  allRecords = response.history || [];
+  if (requestSeq !== historyRequestSeq) {
+    return;
+  }
+
+  const records = response.history || [];
+  allRecords = append ? [...allRecords, ...records] : records;
+  loadedRecordCount = allRecords.length;
   totalRecordCount = typeof response.total === 'number' ? response.total : allRecords.filter((record) => !record.deletedAt).length;
   totalDurationSec = typeof response.totalDurationSec === 'number' ? response.totalDurationSec : allRecords.reduce((sum, record) => sum + Math.max(0, record.durationSec || 0), 0);
   enabledToggle.checked = Boolean(response.enabled);
   render();
+}
+
+async function loadMoreData(): Promise<void> {
+  visibleEntryCount += POPUP_PAGE_SIZE;
+  await loadData(true);
 }
 
 async function loadPrivacyStatus(): Promise<void> {
@@ -852,8 +894,15 @@ async function acceptPrivacyConsent(): Promise<void> {
   acceptConsentBtn.disabled = false;
 }
 
-function exportData(): void {
-  const data = JSON.stringify(getFilteredRecords(), null, 2);
+async function exportData(): Promise<void> {
+  const response = (await chrome.runtime.sendMessage({
+    type: 'getHistoryPage',
+    offset: 0,
+    limit: 5000,
+    filters: getHistoryQuery()
+  })) as GetHistoryResponse | undefined;
+  const records = response?.ok ? response.history || [] : getFilteredRecords();
+  const data = JSON.stringify(records, null, 2);
   const blob = new Blob([data], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
 
@@ -877,6 +926,7 @@ async function clearData(): Promise<void> {
   })) as { ok: boolean };
   if (response?.ok) {
     allRecords = [];
+    loadedRecordCount = 0;
     totalRecordCount = 0;
     totalDurationSec = 0;
     render();
@@ -928,19 +978,19 @@ async function loadAuthStatus(): Promise<void> {
 
 filterEl.addEventListener('change', () => {
   resetPagination();
-  render();
+  void loadData();
 });
 statusFilterEl.addEventListener('change', () => {
   resetPagination();
-  render();
+  void loadData();
 });
 searchFilterEl.addEventListener('input', () => {
   resetPagination();
-  render();
+  void loadData();
 });
 dateFilterEl.addEventListener('change', () => {
   resetPagination();
-  render();
+  void loadData();
 });
 cancelEditBtn.addEventListener('click', () => {
   editDialog.close();
@@ -976,7 +1026,9 @@ resetEditBtn.addEventListener('click', () => {
 filtersToggleBtn.addEventListener('click', () => {
   setFilterDrawerOpen(!isFilterDrawerOpen);
 });
-exportBtn.addEventListener('click', exportData);
+exportBtn.addEventListener('click', () => {
+  void exportData();
+});
 clearBtn.addEventListener('click', clearData);
 enabledToggle.addEventListener('change', () => {
   void setEnabled(enabledToggle.checked);

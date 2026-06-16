@@ -4,6 +4,7 @@ const ENABLED_KEY = 'trackingEnabled';
 const HEARTBEAT_ALARM = 'heartbeat';
 const AUTH_SESSION_KEY = 'supabaseAuthSession';
 const PRIVACY_CONSENT_KEY = 'privacyConsentAccepted';
+const LOCAL_HISTORY_CLEARED_AT_KEY = 'localHistoryClearedAt';
 const REQUIRED_HOST_PERMISSION = '<all_urls>';
 const MIN_DURATION_SEC = 10;
 const MEANINGFUL_PLAYBACK_SEC = 30;
@@ -110,6 +111,9 @@ async function getStorage(key, fallback) {
 }
 async function setStorage(key, value) {
     await chrome.storage.local.set({ [key]: value });
+}
+async function removeStorage(key) {
+    await chrome.storage.local.remove(key);
 }
 async function hasRequiredHostAccess() {
     return chrome.permissions.contains({ origins: [REQUIRED_HOST_PERMISSION] });
@@ -296,6 +300,13 @@ function dateFromMillis(timestamp) {
 function millisFromDate(value) {
     const parsed = Date.parse(value);
     return Number.isFinite(parsed) ? parsed : Date.now();
+}
+function toDateInputValue(timestamp) {
+    const dt = new Date(timestamp);
+    const year = dt.getFullYear();
+    const month = String(dt.getMonth() + 1).padStart(2, '0');
+    const day = String(dt.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 function ensureRecordIdentity(record) {
     const identityKey = record.identityKey || getRecordIdentity(record);
@@ -820,6 +831,12 @@ function isRecordComplete(record) {
     const remainingSec = Math.max(0, duration - watched);
     return ratio >= COMPLETE_RATIO || (ratio >= COMPLETE_NEAR_END_RATIO && remainingSec <= COMPLETE_NEAR_END_SEC);
 }
+function getWatchStatus(record) {
+    if (record.manualStatus === 'continue' || record.manualStatus === 'finished') {
+        return record.manualStatus;
+    }
+    return isRecordComplete(record) ? 'finished' : 'continue';
+}
 function shouldSaveRecord(record) {
     if (isRecordComplete(record)) {
         return true;
@@ -1156,6 +1173,7 @@ async function refreshHistoryFromCloud() {
     const cloudHistory = await fetchCloudRecords(session);
     const merged = compactHistory(mergeCloudAndLocal(localHistory, cloudHistory));
     await setStorage(HISTORY_KEY, merged);
+    await removeStorage(LOCAL_HISTORY_CLEARED_AT_KEY);
     return merged;
 }
 async function getHistoryWithCloudFallback() {
@@ -1168,12 +1186,54 @@ async function getHistoryWithCloudFallback() {
     if (compacted.some((record) => !record.deletedAt)) {
         return compacted;
     }
+    const localClearedAt = await getStorage(LOCAL_HISTORY_CLEARED_AT_KEY, null);
+    if (localClearedAt) {
+        return compacted;
+    }
     try {
         return await refreshHistoryFromCloud();
     }
     catch {
         return compacted;
     }
+}
+function normalizeFilterText(value = '') {
+    return value.trim().toLowerCase();
+}
+function getFilteredHistory(history, query = {}) {
+    const type = query.type ?? 'all';
+    const status = query.status ?? 'all';
+    const searchValue = normalizeFilterText(query.search ?? '');
+    const dateValue = query.date ?? '';
+    return history
+        .filter((record) => !record.deletedAt)
+        .filter((record) => {
+        const mediaType = record.manualMediaType ?? record.mediaType;
+        if (type !== 'all' && mediaType !== type) {
+            return false;
+        }
+        if (status !== 'all' && getWatchStatus(record) !== status) {
+            return false;
+        }
+        if (dateValue && toDateInputValue(record.startedAt) !== dateValue) {
+            return false;
+        }
+        if (searchValue) {
+            const haystack = normalizeFilterText([
+                record.manualTitle,
+                record.title,
+                record.rawTitle,
+                record.manualMediaType,
+                record.hostname,
+                record.url
+            ].filter(Boolean).join(' '));
+            if (!haystack.includes(searchValue)) {
+                return false;
+            }
+        }
+        return true;
+    })
+        .sort((a, b) => b.startedAt - a.startedAt);
 }
 async function saveRecord(record) {
     if (!shouldSaveRecord(record)) {
@@ -1200,6 +1260,7 @@ async function saveRecord(record) {
         compacted.splice(0, compacted.length - 5000);
     }
     await setStorage(HISTORY_KEY, compacted);
+    await removeStorage(LOCAL_HISTORY_CLEARED_AT_KEY);
     void syncPendingRecords();
 }
 async function saveActiveSessionSnapshot(tabId, now = Date.now()) {
@@ -1458,9 +1519,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             await heartbeat();
             const enabled = await isTrackingEnabled();
             const offset = Math.max(0, Math.round(payload.offset ?? 0));
-            const limit = Math.min(200, Math.max(1, Math.round(payload.limit ?? 50)));
+            const limit = Math.min(5000, Math.max(1, Math.round(payload.limit ?? 50)));
             const compacted = await getHistoryWithCloudFallback();
-            const visible = compacted.filter((record) => !record.deletedAt).sort((a, b) => b.startedAt - a.startedAt);
+            const visible = getFilteredHistory(compacted, payload.filters);
             sendResponse({
                 ok: true,
                 history: visible.slice(offset, offset + limit),
@@ -1503,6 +1564,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
                     }
                 }
                 await setStorage(HISTORY_KEY, []);
+                if (payload.scope === 'local') {
+                    await setStorage(LOCAL_HISTORY_CLEARED_AT_KEY, Date.now());
+                }
+                else {
+                    await removeStorage(LOCAL_HISTORY_CLEARED_AT_KEY);
+                }
                 sendResponse({ ok: true });
             }
             catch (error) {

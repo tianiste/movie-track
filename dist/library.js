@@ -332,19 +332,20 @@ async function createCustomGroup() {
     if (!title) {
         return;
     }
-    const existing = customGroups.find((group) => normalizeText(group.title) === normalizeText(title));
+    const mediaType = newGroupTypeInput.value;
+    const existing = customGroups.find((group) => group.mediaType === mediaType && normalizeText(group.title) === normalizeText(title));
     if (!existing) {
         customGroups = [
             ...customGroups,
             {
                 title,
-                mediaType: newGroupTypeInput.value,
+                mediaType,
                 createdAt: Date.now()
             }
         ];
         await saveCustomGroups();
     }
-    expandedGroupKeys.add(getGroupKey(newGroupTypeInput.value, title));
+    expandedGroupKeys.add(getGroupKey(mediaType, title));
     groupDialog.close();
     groupForm.reset();
     render();
