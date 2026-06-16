@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "MovieTrack",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Track movies, anime, and YouTube progress across sites with optional cloud sync.",
   "permissions": ["tabs", "storage", "alarms", "scripting", "identity"],
   "optional_host_permissions": ["<all_urls>"],
