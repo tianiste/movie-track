@@ -513,10 +513,14 @@ function mergeForCloud(base: WatchRecord, incoming: WatchRecord): WatchRecord {
   if (output.episode === null && next.episode !== null) {
     output.episode = next.episode;
   }
-  if ((output.title || '').length < (next.title || '').length) {
+  if (isSameYouTubeVideo(output, next) && next.title) {
+    output.title = next.title;
+  } else if ((output.title || '').length < (next.title || '').length) {
     output.title = next.title;
   }
-  if ((output.rawTitle || '').length < (next.rawTitle || '').length) {
+  if (isSameYouTubeVideo(output, next) && next.rawTitle) {
+    output.rawTitle = next.rawTitle;
+  } else if ((output.rawTitle || '').length < (next.rawTitle || '').length) {
     output.rawTitle = next.rawTitle;
   }
 
@@ -1098,6 +1102,12 @@ function getRecordIdentity(record: WatchRecord): string {
   return `${mediaType}|${normalizedTitle}|${season}|${episode}${hostnamePart}`;
 }
 
+function isSameYouTubeVideo(base: WatchRecord, incoming: WatchRecord): boolean {
+  const baseVideoId = getYouTubeVideoId(base.url);
+  const incomingVideoId = getYouTubeVideoId(incoming.url);
+  return Boolean(baseVideoId && incomingVideoId && baseVideoId === incomingVideoId);
+}
+
 function getUrlIdentity(record: WatchRecord): string | null {
   const url = parseUrl(record.url);
   if (!url) {
@@ -1120,6 +1130,19 @@ function getRecordIdentityCandidates(record: WatchRecord): string[] {
   const season = record.season ?? 'x';
   const episode = record.episode ?? 'x';
   const title = normalizeIdentityTitle(record.title || record.rawTitle || '');
+  const youtubeVideoId = getYouTubeVideoId(record.url);
+
+  if (youtubeVideoId) {
+    const canonicalIdentity = `youtube|${youtubeVideoId}`;
+    const candidates = [
+      canonicalIdentity,
+      record.identityKey === canonicalIdentity ? record.identityKey : null,
+      getUrlIdentity(record)
+    ].filter((value): value is string => Boolean(value));
+
+    return [...new Set(candidates)];
+  }
+
   const candidates = [
     record.identityKey,
     getRecordIdentity(record),
@@ -1149,10 +1172,14 @@ function mergeIntoRecord(base: WatchRecord, incoming: WatchRecord): WatchRecord 
   if (base.episode === null && incoming.episode !== null) {
     base.episode = incoming.episode;
   }
-  if ((base.title || '').length < (incoming.title || '').length) {
+  if (isSameYouTubeVideo(base, incoming) && incoming.title) {
+    base.title = incoming.title;
+  } else if ((base.title || '').length < (incoming.title || '').length) {
     base.title = incoming.title;
   }
-  if ((base.rawTitle || '').length < (incoming.rawTitle || '').length) {
+  if (isSameYouTubeVideo(base, incoming) && incoming.rawTitle) {
+    base.rawTitle = incoming.rawTitle;
+  } else if ((base.rawTitle || '').length < (incoming.rawTitle || '').length) {
     base.rawTitle = incoming.rawTitle;
   }
 
