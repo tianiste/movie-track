@@ -919,8 +919,7 @@ function getRecordIdentityCandidates(record) {
         const canonicalIdentity = `youtube|${youtubeVideoId}`;
         const candidates = [
             canonicalIdentity,
-            record.identityKey === canonicalIdentity ? record.identityKey : null,
-            getUrlIdentity(record)
+            record.identityKey === canonicalIdentity ? record.identityKey : null
         ].filter((value) => Boolean(value));
         return [...new Set(candidates)];
     }

@@ -1136,8 +1136,7 @@ function getRecordIdentityCandidates(record: WatchRecord): string[] {
     const canonicalIdentity = `youtube|${youtubeVideoId}`;
     const candidates = [
       canonicalIdentity,
-      record.identityKey === canonicalIdentity ? record.identityKey : null,
-      getUrlIdentity(record)
+      record.identityKey === canonicalIdentity ? record.identityKey : null
     ].filter((value): value is string => Boolean(value));
 
     return [...new Set(candidates)];
