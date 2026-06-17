@@ -52,7 +52,7 @@ MovieTrack tracks video watch progress in the active browser tab when the tab is
 ## Permission Justifications
 
 - `tabs`: required to read active tab title, URL, and audible state so MovieTrack can detect candidate watch sessions.
-- `storage`: required for local history, privacy consent, tracking settings, and Supabase session storage.
+- `storage`: required for local history, privacy consent, tracking settings, optional allowed-site rules, and Supabase session storage.
 - `alarms`: required for periodic active-tab checks while the MV3 service worker is running.
 - `scripting`: required to read generic `<video>` playback time and resume playback on supported sites.
 - `identity`: required for Google/Supabase sign-in.
@@ -91,7 +91,7 @@ MovieTrack's use of browser permissions and user data is limited to its single p
 
 ## Store Description Draft
 
-MovieTrack is a privacy-conscious watch progress tracker for videos, anime, movies, and YouTube. It helps you keep a simple history of what you watched, where you watched it, and how far you got. MovieTrack works locally by default, and you can optionally sign in with Google to sync your progress through your Supabase account.
+MovieTrack is a privacy-conscious watch progress tracker for videos, anime, movies, and YouTube. It helps you keep a simple history of what you watched, where you watched it, and how far you got. MovieTrack works locally by default, can limit tracking to sites you allow, and can optionally sign in with Google to sync your progress through your Supabase account.
 
 ## Short Description Draft
 
@@ -99,6 +99,6 @@ Automatically track movies, anime, YouTube videos, and watch progress across dev
 
 ## Reviewer Notes
 
-MovieTrack asks for broad host access only after the user accepts tracking because the extension's core purpose is cross-site video tracking. Tracking is disabled until the user accepts the in-extension privacy disclosure and grants site access. A record is created only when the active audible tab exposes a readable `<video>` element. URLs are minimized before storage: hash/query data is removed, and YouTube records keep only the video ID.
+MovieTrack asks for broad host access only after the user accepts tracking because the extension's core purpose is cross-site video tracking. Tracking is disabled until the user accepts the in-extension privacy disclosure and grants site access. Users can turn on site allowlist mode to limit tracking to chosen domains. A record is created only when the active audible tab exposes a readable `<video>` element and, when allowlist mode is enabled, the active site is allowed. URLs are minimized before storage: hash/query data is removed, and YouTube records keep only the video ID.
 
 Supabase access uses a public publishable key only. Row Level Security is enabled and forced on `watch_records`; each user can only access rows where `user_id = auth.uid()`.
