@@ -99,6 +99,6 @@ Automatically track movies, anime, YouTube videos, and watch progress across dev
 
 ## Reviewer Notes
 
-MovieTrack asks for broad host access only after the user accepts tracking because the extension's core purpose is cross-site video tracking. Tracking is disabled until the user accepts the in-extension privacy disclosure and grants site access. Users can turn on site allowlist mode to limit tracking to chosen domains. A record is created only when the active audible tab exposes a readable `<video>` element and, when allowlist mode is enabled, the active site is allowed. URLs are minimized before storage: hash/query data is removed, and YouTube records keep only the video ID.
+MovieTrack asks for broad host access only after the user accepts tracking because the extension's core purpose is cross-site video tracking. Tracking is disabled until the user accepts the in-extension privacy disclosure and grants site access. Users can turn on site allowlist mode to limit tracking to chosen domains. By default, a record is created only when the active audible tab exposes a readable `<video>` element; users can optionally enable tracking for actively playing muted video in that tab. When allowlist mode is enabled, the active site must also be allowed. URLs are minimized before storage: hash/query data is removed, and YouTube records keep only the video ID.
 
 Supabase access uses a public publishable key only. Row Level Security is enabled and forced on `watch_records`; each user can only access rows where `user_id = auth.uid()`.

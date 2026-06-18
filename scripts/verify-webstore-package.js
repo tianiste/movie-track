@@ -21,6 +21,7 @@ const requiredFiles = new Set([
   'dist/library.js',
   'dist/historyFilters.js',
   'dist/siteAllowlist.js',
+  'dist/corrections.js',
   'dist/config.js',
   'dist/types.js'
 ]);

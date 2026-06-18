@@ -13,6 +13,7 @@ const clearLocalBtn = document.getElementById('clearLocalBtn');
 const openPrivacyBtn = document.getElementById('openPrivacyBtn');
 const openLibraryBtn = document.getElementById('openLibraryBtn');
 const allowlistEnabledToggle = document.getElementById('allowlistEnabledToggle');
+const trackMutedToggle = document.getElementById('trackMutedToggle');
 const addCurrentSiteBtn = document.getElementById('addCurrentSiteBtn');
 const addSiteForm = document.getElementById('addSiteForm');
 const siteInput = document.getElementById('siteInput');
@@ -115,6 +116,10 @@ async function loadPrivacyStatus() {
         return;
     }
     trackingStatusText.textContent = response.enabled ? 'Tracking is enabled' : 'Tracking is paused';
+}
+async function loadMutedTrackingStatus() {
+    const response = (await chrome.runtime.sendMessage({ type: 'getMutedTrackingStatus' }));
+    trackMutedToggle.checked = Boolean(response?.ok && response.enabled);
 }
 function renderAllowlistStatus(response) {
     allowlistSites = response.sites || [];
@@ -312,6 +317,13 @@ openLibraryBtn.addEventListener('click', () => {
 allowlistEnabledToggle.addEventListener('change', () => {
     void setAllowlistEnabled(allowlistEnabledToggle.checked);
 });
+trackMutedToggle.addEventListener('change', async () => {
+    const enabled = trackMutedToggle.checked;
+    const response = (await chrome.runtime.sendMessage({ type: 'setMutedTrackingEnabled', enabled }));
+    if (!response?.ok) {
+        trackMutedToggle.checked = !enabled;
+    }
+});
 addCurrentSiteBtn.addEventListener('click', () => {
     void addAllowlistSite(currentAllowlistHostname ?? undefined);
 });
@@ -323,6 +335,7 @@ async function init() {
     await loadAuthStatus();
     await loadHistory();
     await loadPrivacyStatus();
+    await loadMutedTrackingStatus();
     await loadAllowlistStatus();
 }
 void init();

@@ -1,4 +1,5 @@
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from './config.js';
+import { applyCorrectionRule, getCorrectionKey } from './corrections.js';
 import { getFilteredHistory } from './historyFilters.js';
 import { getUrlAllowlistHost, isUrlAllowedByAllowlist, normalizeAllowlist, normalizeAllowlistHost } from './siteAllowlist.js';
 const HISTORY_KEY = 'watchHistory';
@@ -9,6 +10,8 @@ const PRIVACY_CONSENT_KEY = 'privacyConsentAccepted';
 const LOCAL_HISTORY_CLEARED_AT_KEY = 'localHistoryClearedAt';
 const SITE_ALLOWLIST_ENABLED_KEY = 'siteAllowlistEnabled';
 const SITE_ALLOWLIST_KEY = 'siteAllowlist';
+const TRACK_MUTED_KEY = 'trackMutedVideos';
+const CORRECTION_RULES_KEY = 'correctionRules';
 const REQUIRED_HOST_PERMISSION = '<all_urls>';
 const MIN_DURATION_SEC = 10;
 const MEANINGFUL_PLAYBACK_SEC = 30;
@@ -861,7 +864,7 @@ async function getVideoPlaybackInfo(tabId) {
                 const currentTimeSec = Math.max(0, Math.round(bestVideo.currentTime || 0));
                 const hasFiniteDuration = Number.isFinite(bestVideo.duration) && bestVideo.duration > 0;
                 const durationSec = hasFiniteDuration ? Math.round(bestVideo.duration) : null;
-                return { currentTimeSec, durationSec };
+                return { currentTimeSec, durationSec, isPlaying: !bestVideo.paused && !bestVideo.ended };
             }
         });
         const results = injections
@@ -1133,6 +1136,23 @@ async function updateLocalRecord(recordId, patch) {
     if (!changed) {
         throw new Error('Record not found');
     }
+    if ('manualTitle' in normalizedPatch || 'manualMediaType' in normalizedPatch || 'manualSeason' in normalizedPatch) {
+        const record = history.find((item) => item.id === recordId);
+        const key = record ? getCorrectionKey(record) : null;
+        if (record && key) {
+            const rules = await getStorage(CORRECTION_RULES_KEY, {});
+            const title = normalizedPatch.manualTitle ?? null;
+            const mediaType = normalizedPatch.manualMediaType ?? null;
+            const season = normalizedPatch.manualSeason ?? null;
+            if (title || mediaType || season !== null) {
+                rules[key] = { title, mediaType, season, sourceSeason: record.season };
+            }
+            else {
+                delete rules[key];
+            }
+            await setStorage(CORRECTION_RULES_KEY, rules);
+        }
+    }
     await setStorage(HISTORY_KEY, nextHistory);
     void syncPendingRecords();
     return nextHistory;
@@ -1234,9 +1254,14 @@ async function saveRecord(record) {
         return;
     }
     console.debug(`[MovieTrack] Saving record (${record.durationSec}s):`, record.title);
-    const history = await getStorage(HISTORY_KEY, []);
+    const [history, correctionRules] = await Promise.all([
+        getStorage(HISTORY_KEY, []),
+        getStorage(CORRECTION_RULES_KEY, {})
+    ]);
+    const correctionKey = getCorrectionKey(record);
+    const correctedRecord = applyCorrectionRule(record, correctionKey ? correctionRules[correctionKey] : undefined);
     const pendingRecord = {
-        ...ensureRecordIdentity(record),
+        ...ensureRecordIdentity(correctedRecord),
         syncStatus: 'pending',
         syncError: undefined,
         updatedAt: Date.now()
@@ -1298,11 +1323,12 @@ async function startOrUpdateSession(tab, now = Date.now()) {
         }
         return;
     }
-    // Primary detection: tab is playing audio, then confirm a real video element.
+    // Audible playback is the default; muted playback is opt-in and must be actively playing.
     const isAudible = tab.audible === true;
+    const trackMutedVideos = await getStorage(TRACK_MUTED_KEY, false);
     const existing = activeSessions.get(tab.id);
     console.debug('[MovieTrack] Tab', tab.id, 'audible:', isAudible, 'title:', tab.title);
-    if (!isAudible) {
+    if (!isAudible && !trackMutedVideos) {
         if (existing) {
             console.debug('[MovieTrack] Audio stopped; ending session');
             await finalizeSession(tab.id, now);
@@ -1310,7 +1336,7 @@ async function startOrUpdateSession(tab, now = Date.now()) {
         return;
     }
     const playback = await getVideoPlaybackInfo(tab.id);
-    if (!playback) {
+    if (!playback || (!isAudible && !playback.isPlaying)) {
         if (existing) {
             console.debug('[MovieTrack] Video element unavailable; ending session');
             await finalizeSession(tab.id, now);
@@ -1456,6 +1482,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
                 currentHostname: allowlist.currentHostname,
                 currentAllowed: allowlist.currentAllowed
             });
+            return;
+        }
+        if (payload?.type === 'getMutedTrackingStatus') {
+            sendResponse({ ok: true, enabled: await getStorage(TRACK_MUTED_KEY, false) });
+            return;
+        }
+        if (payload?.type === 'setMutedTrackingEnabled') {
+            const enabled = Boolean(payload.enabled);
+            await setStorage(TRACK_MUTED_KEY, enabled);
+            await heartbeat();
+            sendResponse({ ok: true, enabled });
             return;
         }
         if (payload?.type === 'acceptPrivacyConsent') {
@@ -1611,6 +1648,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
                     }
                 }
                 await setStorage(HISTORY_KEY, []);
+                await removeStorage(CORRECTION_RULES_KEY);
                 if (payload.scope === 'local') {
                     await setStorage(LOCAL_HISTORY_CLEARED_AT_KEY, Date.now());
                 }

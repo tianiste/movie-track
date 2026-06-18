@@ -80,7 +80,14 @@
             <p id="trackingStatusText">Checking permissions...</p>
           </div>
         </div>
-        <p class="muted">Tracking starts only after privacy consent, optional site access, active audible tab playback, and a readable video element.</p>
+        <p class="muted">Tracking starts only after privacy consent, optional site access, active tab playback, and a readable video element.</p>
+        <label class="switch-row">
+          <span>
+            <strong>Track muted videos</strong>
+            <small>Also track actively playing video in the focused tab when its audio is muted.</small>
+          </span>
+          <input id="trackMutedToggle" type="checkbox" />
+        </label>
       </section>
 
       <section class="settings-card">

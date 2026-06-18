@@ -9,7 +9,7 @@ MovieTrack is a browser extension that remembers what you watched, where you sto
 
 Streaming progress is fragmented. YouTube has its own history. Anime sites have their own state. Movie sites often remember nothing. Browser history knows pages, but not useful watch progress. MovieTrack exists to make video progress portable without building a full streaming platform account system.
 
-It watches only your active audible tab, detects a readable video element, saves a minimized record locally first, and syncs to Supabase after Google sign-in.
+It watches your active tab, detects a playing readable video element, saves a minimized record locally first, and syncs to Supabase after Google sign-in. Muted-video tracking is optional and off by default.
 
 **Website:** [tianiste.github.io/movie-track](https://tianiste.github.io/movie-track/)
 
@@ -36,7 +36,7 @@ It watches only your active audible tab, detects a readable video element, saves
 
 ## Features
 
-- Tracks active audible video tabs only.
+- Tracks active audible video tabs by default, with optional muted-video tracking.
 - Detects YouTube, anime, movie, and unknown video sessions.
 - Reads generic `<video>` playback time when browser site access allows it.
 - Saves watch history locally first using `chrome.storage.local`.
@@ -51,6 +51,7 @@ It watches only your active audible tab, detects a readable video element, saves
 - Lets signed-in users delete cloud data and clear local history.
 - Requires explicit privacy consent before tracking starts.
 - Requests broad site access only as optional permission after consent.
+- Reuses title, media-type, and same-season corrections for later episodes on the same site.
 
 ## Install
 
@@ -233,11 +234,11 @@ No. `SUPABASE_PUBLISHABLE_KEY` is public. Security comes from Auth tokens plus R
 
 ### Why does MovieTrack ask for broad site access?
 
-Its purpose is to track videos across arbitrary sites. The permission is optional and requested only after consent. Tracking still requires an active audible tab and a readable video element.
+Its purpose is to track videos across arbitrary sites. The permission is optional and requested only after consent. Tracking requires an active tab and a readable playing video element; muted-video tracking is optional and off by default.
 
 ### Does it track every page I visit?
 
-No. A record is saved only for active audible tabs with video playback data and at least 5 seconds of watch time.
+No. A record is saved only for active tabs with readable video playback data and at least 5 seconds of watch time. Muted playback is ignored unless you enable it in Settings.
 
 ### Can I use it without signing in?
 

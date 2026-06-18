@@ -62,6 +62,7 @@ const clearLocalBtn = document.getElementById('clearLocalBtn') as HTMLButtonElem
 const openPrivacyBtn = document.getElementById('openPrivacyBtn') as HTMLButtonElement;
 const openLibraryBtn = document.getElementById('openLibraryBtn') as HTMLButtonElement;
 const allowlistEnabledToggle = document.getElementById('allowlistEnabledToggle') as HTMLInputElement;
+const trackMutedToggle = document.getElementById('trackMutedToggle') as HTMLInputElement;
 const addCurrentSiteBtn = document.getElementById('addCurrentSiteBtn') as HTMLButtonElement;
 const addSiteForm = document.getElementById('addSiteForm') as HTMLFormElement;
 const siteInput = document.getElementById('siteInput') as HTMLInputElement;
@@ -185,6 +186,11 @@ async function loadPrivacyStatus(): Promise<void> {
   }
 
   trackingStatusText.textContent = response.enabled ? 'Tracking is enabled' : 'Tracking is paused';
+}
+
+async function loadMutedTrackingStatus(): Promise<void> {
+  const response = (await chrome.runtime.sendMessage({ type: 'getMutedTrackingStatus' })) as { ok: boolean; enabled: boolean };
+  trackMutedToggle.checked = Boolean(response?.ok && response.enabled);
 }
 
 function renderAllowlistStatus(response: AllowlistStatusResponse): void {
@@ -427,6 +433,13 @@ openLibraryBtn.addEventListener('click', () => {
 allowlistEnabledToggle.addEventListener('change', () => {
   void setAllowlistEnabled(allowlistEnabledToggle.checked);
 });
+trackMutedToggle.addEventListener('change', async () => {
+  const enabled = trackMutedToggle.checked;
+  const response = (await chrome.runtime.sendMessage({ type: 'setMutedTrackingEnabled', enabled })) as { ok: boolean };
+  if (!response?.ok) {
+    trackMutedToggle.checked = !enabled;
+  }
+});
 addCurrentSiteBtn.addEventListener('click', () => {
   void addAllowlistSite(currentAllowlistHostname ?? undefined);
 });
@@ -439,6 +452,7 @@ async function init(): Promise<void> {
   await loadAuthStatus();
   await loadHistory();
   await loadPrivacyStatus();
+  await loadMutedTrackingStatus();
   await loadAllowlistStatus();
 }
 
