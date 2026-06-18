@@ -72,6 +72,12 @@ let isSignedIn = false;
 let allowlistSites: string[] = [];
 let currentAllowlistHostname: string | null = null;
 
+/**
+ * Formats the total watched time from records as a string in hours.
+ *
+ * @param records - Array of watch records to sum
+ * @returns The total watched time formatted to one decimal place in hours
+ */
 function formatHours(records: WatchRecord[]): string {
   const seconds = records.reduce((sum, record) => sum + Math.max(0, record.durationSec || 0), 0);
   return (seconds / 3600).toFixed(1);
@@ -167,6 +173,9 @@ async function loadHistory(): Promise<void> {
   renderSyncSummary();
 }
 
+/**
+ * Loads the privacy and tracking consent status and updates the corresponding UI message.
+ */
 async function loadPrivacyStatus(): Promise<void> {
   const response = (await chrome.runtime.sendMessage({ type: 'getPrivacyStatus' })) as PrivacyStatusResponse;
   if (!response?.ok) {
@@ -187,6 +196,11 @@ async function loadPrivacyStatus(): Promise<void> {
   trackingStatusText.textContent = response.enabled ? 'Tracking is enabled' : 'Tracking is paused';
 }
 
+/**
+ * Updates the allowlist UI to reflect the current configuration and enabled state.
+ *
+ * @param response - The allowlist status containing enabled state, list of sites, and current hostname
+ */
 function renderAllowlistStatus(response: AllowlistStatusResponse): void {
   allowlistSites = response.sites || [];
   currentAllowlistHostname = response.currentHostname;
@@ -226,6 +240,9 @@ function renderAllowlistStatus(response: AllowlistStatusResponse): void {
   }
 }
 
+/**
+ * Retrieves and displays the current site allowlist settings.
+ */
 async function loadAllowlistStatus(): Promise<void> {
   const response = (await chrome.runtime.sendMessage({ type: 'getAllowlistStatus' })) as AllowlistStatusResponse;
   if (!response?.ok) {
@@ -236,6 +253,9 @@ async function loadAllowlistStatus(): Promise<void> {
   renderAllowlistStatus(response);
 }
 
+/**
+ * Enables or disables the site allowlist feature.
+ */
 async function setAllowlistEnabled(enabled: boolean): Promise<void> {
   const response = (await chrome.runtime.sendMessage({ type: 'setAllowlistEnabled', enabled })) as AllowlistStatusResponse;
   if (!response?.ok) {
@@ -247,6 +267,9 @@ async function setAllowlistEnabled(enabled: boolean): Promise<void> {
   renderAllowlistStatus(response);
 }
 
+/**
+ * Adds a site to the allowlist.
+ */
 async function addAllowlistSite(site?: string): Promise<void> {
   const response = (await chrome.runtime.sendMessage({ type: 'addAllowlistSite', site })) as AllowlistStatusResponse;
   if (!response?.ok) {
@@ -258,6 +281,11 @@ async function addAllowlistSite(site?: string): Promise<void> {
   renderAllowlistStatus(response);
 }
 
+/**
+ * Removes a site from the allowlist.
+ *
+ * @param site - The site to remove
+ */
 async function removeAllowlistSite(site: string): Promise<void> {
   const response = (await chrome.runtime.sendMessage({ type: 'removeAllowlistSite', site })) as AllowlistStatusResponse;
   if (!response?.ok) {
@@ -268,6 +296,9 @@ async function removeAllowlistSite(site: string): Promise<void> {
   renderAllowlistStatus(response);
 }
 
+/**
+ * Authenticates the user and loads their account data and history.
+ */
 async function signIn(): Promise<void> {
   signInBtn.disabled = true;
   const response = (await chrome.runtime.sendMessage({ type: 'signIn' })) as AuthStatusResponse;
@@ -435,6 +466,9 @@ addSiteForm.addEventListener('submit', (event) => {
   void addAllowlistSite(siteInput.value);
 });
 
+/**
+ * Initializes the options page by loading authentication, history, privacy, and allowlist status.
+ */
 async function init(): Promise<void> {
   await loadAuthStatus();
   await loadHistory();
