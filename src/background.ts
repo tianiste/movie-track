@@ -1,5 +1,6 @@
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from './config.js';
 import { getFilteredHistory, type HistoryQuery } from './historyFilters.js';
+import { getUrlAllowlistHost, isUrlAllowedByAllowlist, normalizeAllowlist, normalizeAllowlistHost } from './siteAllowlist.js';
 import type { AuthSession, AuthUser, MediaType, WatchRecord, WatchStatus } from './types.js';
 
 const HISTORY_KEY = 'watchHistory';
@@ -8,6 +9,8 @@ const HEARTBEAT_ALARM = 'heartbeat';
 const AUTH_SESSION_KEY = 'supabaseAuthSession';
 const PRIVACY_CONSENT_KEY = 'privacyConsentAccepted';
 const LOCAL_HISTORY_CLEARED_AT_KEY = 'localHistoryClearedAt';
+const SITE_ALLOWLIST_ENABLED_KEY = 'siteAllowlistEnabled';
+const SITE_ALLOWLIST_KEY = 'siteAllowlist';
 const REQUIRED_HOST_PERMISSION = '<all_urls>';
 
 const MIN_DURATION_SEC = 10;
@@ -1094,6 +1097,57 @@ async function isTrackingEnabled(): Promise<boolean> {
   return enabled && consentAccepted && hostAccessGranted;
 }
 
+async function isUrlAllowedForTracking(urlString = ''): Promise<boolean> {
+  const [allowlistEnabled, sites] = await Promise.all([
+    getStorage<boolean>(SITE_ALLOWLIST_ENABLED_KEY, false),
+    getStorage<string[]>(SITE_ALLOWLIST_KEY, [])
+  ]);
+  return isUrlAllowedByAllowlist(urlString, allowlistEnabled, sites);
+}
+
+async function getAllowlistStatus(): Promise<{
+  enabled: boolean;
+  sites: string[];
+  currentHostname: string | null;
+  currentAllowed: boolean;
+}> {
+  const [enabled, storedSites, activeTab] = await Promise.all([
+    getStorage<boolean>(SITE_ALLOWLIST_ENABLED_KEY, false),
+    getStorage<string[]>(SITE_ALLOWLIST_KEY, []),
+    getActiveTabInFocusedWindow()
+  ]);
+  const sites = normalizeAllowlist(storedSites);
+  const currentHostname = activeTab?.url ? getUrlAllowlistHost(activeTab.url) || null : null;
+  const currentAllowed = currentHostname ? isUrlAllowedByAllowlist(activeTab?.url ?? '', enabled, sites) : false;
+  return { enabled, sites, currentHostname, currentAllowed };
+}
+
+async function setAllowlistSites(sites: string[]): Promise<string[]> {
+  const normalized = normalizeAllowlist(sites);
+  await setStorage(SITE_ALLOWLIST_KEY, normalized);
+  return normalized;
+}
+
+async function addAllowlistSite(value?: string): Promise<string[]> {
+  let hostname = normalizeAllowlistHost(value ?? '');
+  if (!hostname) {
+    const activeTab = await getActiveTabInFocusedWindow();
+    hostname = activeTab?.url ? getUrlAllowlistHost(activeTab.url) : '';
+  }
+  if (!hostname) {
+    throw new Error('No site to add');
+  }
+
+  const sites = await getStorage<string[]>(SITE_ALLOWLIST_KEY, []);
+  return setAllowlistSites([...sites, hostname]);
+}
+
+async function removeAllowlistSite(value: string): Promise<string[]> {
+  const hostname = normalizeAllowlistHost(value);
+  const sites = await getStorage<string[]>(SITE_ALLOWLIST_KEY, []);
+  return setAllowlistSites(sites.filter((site) => normalizeAllowlistHost(site) !== hostname));
+}
+
 function getRecordIdentity(record: WatchRecord): string {
   const youtubeVideoId = getYouTubeVideoId(record.url);
   if (youtubeVideoId) {
@@ -1525,6 +1579,13 @@ async function startOrUpdateSession(tab: chrome.tabs.Tab, now = Date.now()): Pro
     return;
   }
 
+  if (!(await isUrlAllowedForTracking(tab.url ?? ''))) {
+    if (activeSessions.has(tab.id)) {
+      await finalizeSession(tab.id, now);
+    }
+    return;
+  }
+
   // Primary detection: tab is playing audio, then confirm a real video element.
   const isAudible = tab.audible === true;
   const existing = activeSessions.get(tab.id);
@@ -1704,15 +1765,26 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
       offset?: number;
       limit?: number;
       filters?: HistoryQuery;
+      site?: string;
     };
 
     if (payload?.type === 'getPrivacyStatus') {
-      const [consentAccepted, enabled, hostAccessGranted] = await Promise.all([
+      const [consentAccepted, enabled, hostAccessGranted, allowlist] = await Promise.all([
         getStorage<boolean>(PRIVACY_CONSENT_KEY, false),
         getStorage<boolean>(ENABLED_KEY, false),
-        hasRequiredHostAccess()
+        hasRequiredHostAccess(),
+        getAllowlistStatus()
       ]);
-      sendResponse({ ok: true, consentAccepted, enabled: enabled && hostAccessGranted, hostAccessGranted });
+      sendResponse({
+        ok: true,
+        consentAccepted,
+        enabled: enabled && hostAccessGranted,
+        hostAccessGranted,
+        allowlistEnabled: allowlist.enabled,
+        allowlistSites: allowlist.sites,
+        currentHostname: allowlist.currentHostname,
+        currentAllowed: allowlist.currentAllowed
+      });
       return;
     }
 
@@ -1726,6 +1798,47 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
         await heartbeat();
       }
       sendResponse({ ok: true, consentAccepted: true, enabled: hostAccessGranted, hostAccessGranted });
+      return;
+    }
+
+    if (payload?.type === 'getAllowlistStatus') {
+      sendResponse({ ok: true, ...(await getAllowlistStatus()) });
+      return;
+    }
+
+    if (payload?.type === 'setAllowlistEnabled') {
+      const enabled = Boolean(payload.enabled);
+      await setStorage(SITE_ALLOWLIST_ENABLED_KEY, enabled);
+      if (enabled) {
+        const sites = await getStorage<string[]>(SITE_ALLOWLIST_KEY, []);
+        if (sites.length === 0) {
+          await addAllowlistSite().catch(() => []);
+        }
+      }
+      await heartbeat();
+      sendResponse({ ok: true, ...(await getAllowlistStatus()) });
+      return;
+    }
+
+    if (payload?.type === 'addAllowlistSite') {
+      try {
+        await addAllowlistSite(payload.site);
+        await heartbeat();
+        sendResponse({ ok: true, ...(await getAllowlistStatus()) });
+      } catch (error) {
+        sendResponse({ ok: false, error: error instanceof Error ? error.message : 'Could not add site' });
+      }
+      return;
+    }
+
+    if (payload?.type === 'removeAllowlistSite') {
+      if (!payload.site) {
+        sendResponse({ ok: false, error: 'Missing site' });
+        return;
+      }
+      await removeAllowlistSite(payload.site);
+      await heartbeat();
+      sendResponse({ ok: true, ...(await getAllowlistStatus()) });
       return;
     }
 

@@ -163,6 +163,92 @@ h2 {
   background: rgba(215, 51, 87, 0.12);
 }
 
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px;
+  border: 1px solid var(--outline-variant);
+  border-radius: 8px;
+  background: var(--surface-container-high);
+}
+
+.switch-row strong {
+  display: block;
+  font-size: 13px;
+}
+
+.switch-row small {
+  display: block;
+  color: var(--on-surface-variant);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.switch-row input {
+  width: 42px;
+  height: 22px;
+  accent-color: var(--primary);
+  flex: 0 0 auto;
+}
+
+.allowlist-actions {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.6fr) minmax(0, 1.4fr);
+  gap: 10px;
+}
+
+.site-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.site-form input {
+  min-height: 42px;
+  border-radius: 8px;
+  border: 1px solid var(--outline-variant);
+  background: var(--surface-container-high);
+  color: var(--on-surface);
+  padding: 9px 12px;
+  font-size: 13px;
+}
+
+.site-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.site-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--outline-variant);
+  border-radius: 8px;
+  background: var(--surface-container-high);
+}
+
+.site-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.site-row button {
+  min-height: 34px;
+  padding: 6px 10px;
+}
+
+.empty-sites {
+  color: var(--on-surface-variant);
+  font-size: 13px;
+}
+
 @media (max-width: 640px) {
   .settings-shell {
     width: min(100% - 24px, 760px);
@@ -170,7 +256,9 @@ h2 {
   }
 
   .settings-header,
-  .button-grid {
+  .button-grid,
+  .allowlist-actions,
+  .site-form {
     grid-template-columns: 1fr;
   }
 

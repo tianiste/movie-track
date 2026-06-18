@@ -19,11 +19,6 @@
           <h1>MovieTrack</h1>
         </div>
         <div class="topbar-actions">
-          <label class="toggle-label">
-            <span class="toggle-text">Tracking</span>
-            <input id="enabledToggle" type="checkbox" class="toggle-input" />
-            <span class="toggle-switch"></span>
-          </label>
           <button id="libraryBtn" class="icon-btn" title="Library">
             <span class="material-symbols-outlined">video_library</span>
           </button>
@@ -49,11 +44,25 @@
 
       <section class="auth-card">
         <div class="auth-status-row">
-          <span class="material-symbols-outlined auth-icon">account_circle</span>
-          <div class="auth-text-wrap">
-            <p class="auth-label">Account</p>
-            <p class="auth-status" id="authStatusText">Not signed in</p>
-            <p class="auth-sync" id="syncStatusText">Local only</p>
+          <div class="auth-account">
+            <span class="material-symbols-outlined auth-icon">account_circle</span>
+            <div class="auth-text-wrap">
+              <p class="auth-label">Account</p>
+              <p class="auth-status" id="authStatusText">Not signed in</p>
+              <p class="auth-sync" id="syncStatusText">Local only</p>
+            </div>
+          </div>
+          <div class="auth-switches">
+            <label class="toggle-label">
+              <span class="toggle-text">Tracking</span>
+              <input id="enabledToggle" type="checkbox" class="toggle-input" />
+              <span class="toggle-switch"></span>
+            </label>
+            <label class="toggle-label allowlist-toggle" title="Only track sites in your allowlist">
+              <span class="toggle-text">Sites</span>
+              <input id="allowlistToggle" type="checkbox" class="toggle-input" />
+              <span class="toggle-switch"></span>
+            </label>
           </div>
         </div>
       </section>

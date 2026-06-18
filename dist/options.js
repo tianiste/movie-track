@@ -2,6 +2,7 @@ const accountStatusText = document.getElementById('accountStatusText');
 const syncStatusText = document.getElementById('syncStatusText');
 const localStatusText = document.getElementById('localStatusText');
 const trackingStatusText = document.getElementById('trackingStatusText');
+const allowlistStatusText = document.getElementById('allowlistStatusText');
 const signInBtn = document.getElementById('signInBtn');
 const signOutBtn = document.getElementById('signOutBtn');
 const syncLocalBtn = document.getElementById('syncLocalBtn');
@@ -11,8 +12,15 @@ const exportBtn = document.getElementById('exportBtn');
 const clearLocalBtn = document.getElementById('clearLocalBtn');
 const openPrivacyBtn = document.getElementById('openPrivacyBtn');
 const openLibraryBtn = document.getElementById('openLibraryBtn');
+const allowlistEnabledToggle = document.getElementById('allowlistEnabledToggle');
+const addCurrentSiteBtn = document.getElementById('addCurrentSiteBtn');
+const addSiteForm = document.getElementById('addSiteForm');
+const siteInput = document.getElementById('siteInput');
+const allowlistSitesEl = document.getElementById('allowlistSites');
 let allRecords = [];
 let isSignedIn = false;
+let allowlistSites = [];
+let currentAllowlistHostname = null;
 function formatHours(records) {
     const seconds = records.reduce((sum, record) => sum + Math.max(0, record.durationSec || 0), 0);
     return (seconds / 3600).toFixed(1);
@@ -107,6 +115,73 @@ async function loadPrivacyStatus() {
         return;
     }
     trackingStatusText.textContent = response.enabled ? 'Tracking is enabled' : 'Tracking is paused';
+}
+function renderAllowlistStatus(response) {
+    allowlistSites = response.sites || [];
+    currentAllowlistHostname = response.currentHostname;
+    allowlistEnabledToggle.checked = Boolean(response.enabled);
+    addCurrentSiteBtn.disabled = !Boolean(response.currentHostname);
+    addCurrentSiteBtn.textContent = response.currentHostname ? `Add ${response.currentHostname}` : 'Add current site';
+    allowlistStatusText.textContent = response.enabled
+        ? `${allowlistSites.length} allowed ${allowlistSites.length === 1 ? 'site' : 'sites'}`
+        : 'Allowlist is off';
+    allowlistSitesEl.textContent = '';
+    if (allowlistSites.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'empty-sites';
+        empty.textContent = 'No sites added yet.';
+        allowlistSitesEl.append(empty);
+        return;
+    }
+    for (const site of allowlistSites) {
+        const row = document.createElement('div');
+        row.className = 'site-row';
+        const label = document.createElement('span');
+        label.textContent = site;
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'action-btn danger-btn';
+        removeBtn.type = 'button';
+        removeBtn.textContent = 'Remove';
+        removeBtn.addEventListener('click', () => {
+            void removeAllowlistSite(site);
+        });
+        row.append(label, removeBtn);
+        allowlistSitesEl.append(row);
+    }
+}
+async function loadAllowlistStatus() {
+    const response = (await chrome.runtime.sendMessage({ type: 'getAllowlistStatus' }));
+    if (!response?.ok) {
+        allowlistStatusText.textContent = response?.error || 'Site allowlist unavailable';
+        return;
+    }
+    renderAllowlistStatus(response);
+}
+async function setAllowlistEnabled(enabled) {
+    const response = (await chrome.runtime.sendMessage({ type: 'setAllowlistEnabled', enabled }));
+    if (!response?.ok) {
+        allowlistEnabledToggle.checked = !enabled;
+        allowlistStatusText.textContent = response?.error || 'Could not update allowlist';
+        return;
+    }
+    renderAllowlistStatus(response);
+}
+async function addAllowlistSite(site) {
+    const response = (await chrome.runtime.sendMessage({ type: 'addAllowlistSite', site }));
+    if (!response?.ok) {
+        allowlistStatusText.textContent = response?.error || 'Could not add site';
+        return;
+    }
+    siteInput.value = '';
+    renderAllowlistStatus(response);
+}
+async function removeAllowlistSite(site) {
+    const response = (await chrome.runtime.sendMessage({ type: 'removeAllowlistSite', site }));
+    if (!response?.ok) {
+        allowlistStatusText.textContent = response?.error || 'Could not remove site';
+        return;
+    }
+    renderAllowlistStatus(response);
 }
 async function signIn() {
     signInBtn.disabled = true;
@@ -234,10 +309,21 @@ openPrivacyBtn.addEventListener('click', () => {
 openLibraryBtn.addEventListener('click', () => {
     void chrome.tabs.create({ url: chrome.runtime.getURL('library.html') });
 });
+allowlistEnabledToggle.addEventListener('change', () => {
+    void setAllowlistEnabled(allowlistEnabledToggle.checked);
+});
+addCurrentSiteBtn.addEventListener('click', () => {
+    void addAllowlistSite(currentAllowlistHostname ?? undefined);
+});
+addSiteForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    void addAllowlistSite(siteInput.value);
+});
 async function init() {
     await loadAuthStatus();
     await loadHistory();
     await loadPrivacyStatus();
+    await loadAllowlistStatus();
 }
 void init();
 export {};

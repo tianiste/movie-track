@@ -77,6 +77,7 @@ run('zip', [
   'dist/options.js',
   'dist/library.js',
   'dist/historyFilters.js',
+  'dist/siteAllowlist.js',
   'dist/config.js',
   'dist/types.js'
 ], { cwd: tempDir });

@@ -144,24 +144,33 @@ h1, h2, h3, h4 {
 .topbar-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 /* Toggle */
 .toggle-label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 12px;
   background: var(--surface-container-high);
   border: 1px solid var(--outline-variant);
   border-radius: 999px;
-  padding: 6px 12px;
+  padding: 6px 9px;
   cursor: pointer;
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1px;
   color: var(--on-surface-variant);
+}
+
+.toggle-text {
+  text-align: left;
+}
+
+.allowlist-toggle {
+  padding-inline: 8px;
 }
 
 .toggle-input {
@@ -172,6 +181,7 @@ h1, h2, h3, h4 {
   display: inline-block;
   width: 28px;
   height: 16px;
+  flex: 0 0 auto;
   background: var(--surface-container-highest);
   border-radius: 999px;
   position: relative;
@@ -267,7 +277,24 @@ h1, h2, h3, h4 {
 .auth-status-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.auth-account {
+  display: flex;
+  align-items: center;
   gap: 10px;
+  min-width: 0;
+}
+
+.auth-switches {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 118px;
+  flex: 0 0 118px;
+  align-items: stretch;
 }
 
 .auth-icon {
@@ -296,7 +323,7 @@ h1, h2, h3, h4 {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 320px;
+  max-width: 190px;
 }
 
 .auth-sync {
