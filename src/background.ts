@@ -1088,6 +1088,11 @@ async function getVideoPlaybackInfo(tabId: number): Promise<VideoPlaybackInfo | 
   }
 }
 
+/**
+ * Determines whether video tracking is currently enabled and permitted.
+ *
+ * @returns `true` if tracking is enabled, privacy consent is accepted, and required host access is granted; `false` otherwise.
+ */
 async function isTrackingEnabled(): Promise<boolean> {
   const [enabled, consentAccepted, hostAccessGranted] = await Promise.all([
     getStorage<boolean>(ENABLED_KEY, false),
@@ -1097,6 +1102,11 @@ async function isTrackingEnabled(): Promise<boolean> {
   return enabled && consentAccepted && hostAccessGranted;
 }
 
+/**
+ * Determines whether a URL is allowed for tracking based on the configured allowlist.
+ *
+ * @returns `true` if the URL is allowed for tracking, `false` otherwise.
+ */
 async function isUrlAllowedForTracking(urlString = ''): Promise<boolean> {
   const [allowlistEnabled, sites] = await Promise.all([
     getStorage<boolean>(SITE_ALLOWLIST_ENABLED_KEY, false),
@@ -1105,6 +1115,11 @@ async function isUrlAllowedForTracking(urlString = ''): Promise<boolean> {
   return isUrlAllowedByAllowlist(urlString, allowlistEnabled, sites);
 }
 
+/**
+ * Retrieves the current site allowlist configuration and checks if the active tab is allowed for tracking.
+ *
+ * @returns The allowlist configuration with `enabled` status, `sites` list, the active tab's `currentHostname`, and whether the tab is `currentAllowed`.
+ */
 async function getAllowlistStatus(): Promise<{
   enabled: boolean;
   sites: string[];
@@ -1122,12 +1137,25 @@ async function getAllowlistStatus(): Promise<{
   return { enabled, sites, currentHostname, currentAllowed };
 }
 
+/**
+ * Stores a normalized allowlist of site hostnames.
+ *
+ * @param sites - Site hostnames to store in the allowlist
+ * @returns The normalized site hostnames stored in the allowlist
+ */
 async function setAllowlistSites(sites: string[]): Promise<string[]> {
   const normalized = normalizeAllowlist(sites);
   await setStorage(SITE_ALLOWLIST_KEY, normalized);
   return normalized;
 }
 
+/**
+ * Adds a hostname to the allowlist, using the active tab's URL if none is provided.
+ *
+ * @param value - The hostname or URL to add; if omitted, uses the active tab's hostname
+ * @returns The updated list of allowlisted hostnames
+ * @throws When no hostname can be determined
+ */
 async function addAllowlistSite(value?: string): Promise<string[]> {
   let hostname = normalizeAllowlistHost(value ?? '');
   if (!hostname) {
@@ -1142,12 +1170,23 @@ async function addAllowlistSite(value?: string): Promise<string[]> {
   return setAllowlistSites([...sites, hostname]);
 }
 
+/**
+ * Removes a hostname from the allowlist.
+ *
+ * @param value - The hostname to remove
+ * @returns The updated list of allowlisted hostnames
+ */
 async function removeAllowlistSite(value: string): Promise<string[]> {
   const hostname = normalizeAllowlistHost(value);
   const sites = await getStorage<string[]>(SITE_ALLOWLIST_KEY, []);
   return setAllowlistSites(sites.filter((site) => normalizeAllowlistHost(site) !== hostname));
 }
 
+/**
+ * Generates a unique identity key for a watch record.
+ *
+ * @returns A string key used for record deduplication and merging.
+ */
 function getRecordIdentity(record: WatchRecord): string {
   const youtubeVideoId = getYouTubeVideoId(record.url);
   if (youtubeVideoId) {
@@ -1567,6 +1606,14 @@ async function stopTrackingSessions(now = Date.now()): Promise<void> {
   currentActiveTabId = null;
 }
 
+/**
+ * Manages the active session for a tab based on tracking status, URL allowlist, audio, and video element availability.
+ *
+ * If tracking is disabled, the URL is not allowlisted, the tab is not audible, or no video element is detected, any existing session is finalized. For an existing session with the same URL and title, playback information is updated. Otherwise, any prior session is finalized and a new session begins with inferred media metadata.
+ *
+ * @param tab - The Chrome tab.
+ * @param now - The current timestamp in milliseconds; defaults to the current time.
+ */
 async function startOrUpdateSession(tab: chrome.tabs.Tab, now = Date.now()): Promise<void> {
   if (typeof tab.id !== 'number') {
     return;

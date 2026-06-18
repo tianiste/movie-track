@@ -859,6 +859,9 @@ async function loadMoreData(): Promise<void> {
   await loadData(true);
 }
 
+/**
+ * Fetches the current privacy consent and host access status from the background script and applies it to UI controls and state.
+ */
 async function loadPrivacyStatus(): Promise<void> {
   const response = (await chrome.runtime.sendMessage({ type: 'getPrivacyStatus' })) as PrivacyStatusResponse;
   if (!response?.ok) {
@@ -880,10 +883,22 @@ async function loadPrivacyStatus(): Promise<void> {
     : 'Track any site after consent and site access';
 }
 
+/**
+ * Requests the browser permission to track playback across all websites.
+ *
+ * @returns `true` if the user grants permission, `false` otherwise.
+ */
 async function requestHostAccess(): Promise<boolean> {
   return chrome.permissions.request({ origins: ['<all_urls>'] });
 }
 
+/**
+ * Accepts privacy consent for tracking after requesting site access permissions.
+ *
+ * Prompts the user for host access permission. If access is denied, displays an error
+ * and returns without accepting consent. On success, updates the UI to reflect consent
+ * acceptance and refreshes the history data.
+ */
 async function acceptPrivacyConsent(): Promise<void> {
   acceptConsentBtn.disabled = true;
   const hostAccessGranted = await requestHostAccess();
@@ -948,6 +963,11 @@ async function clearData(): Promise<void> {
   }
 }
 
+/**
+ * Enables or disables tracking with a privacy consent requirement.
+ *
+ * Prevents enabling tracking if privacy consent has not been accepted.
+ */
 async function setEnabled(enabled: boolean): Promise<void> {
   if (enabled && !hasPrivacyConsent) {
     enabledToggle.checked = false;
@@ -962,6 +982,11 @@ async function setEnabled(enabled: boolean): Promise<void> {
   }
 }
 
+/**
+ * Enables or disables the site allowlist feature.
+ *
+ * If privacy consent has not been accepted, shows the consent card instead. On success, reloads privacy status to update related UI.
+ */
 async function setAllowlistEnabled(enabled: boolean): Promise<void> {
   if (enabled && !hasPrivacyConsent) {
     allowlistToggle.checked = false;
@@ -980,6 +1005,12 @@ async function setAllowlistEnabled(enabled: boolean): Promise<void> {
   await loadPrivacyStatus();
 }
 
+/**
+ * Updates the authentication status display based on the authorization response.
+ *
+ * Shows Supabase configuration status, user sign-in state (email or generic status),
+ * and sync summary when configured.
+ */
 function setAuthUiState(response: AuthStatusResponse): void {
   isSignedIn = Boolean(response.signedIn);
 
