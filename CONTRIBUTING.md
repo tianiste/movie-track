@@ -4,7 +4,7 @@ Thanks for improving MovieTrack. Keep contributions focused on watch tracking, p
 
 ## Setup
 
-```sh
+```bash
 npm install
 npm run typecheck
 npm run build
@@ -16,7 +16,7 @@ Load the extension from this folder in `chrome://extensions` or `brave://extensi
 
 Run:
 
-```sh
+```bash
 npm run verify:publish
 ```
 
