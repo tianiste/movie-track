@@ -37,12 +37,7 @@ It watches your active tab, detects a playing readable video element, saves a mi
 
 ## Launch Video
 
-<video controls muted playsinline poster="docs/assets/brag.jpg" width="960">
-  <source src="docs/assets/brag.mp4" type="video/mp4" />
-  <a href="docs/assets/brag.mp4"><img src="docs/assets/brag.jpg" alt="Watch the MovieTrack launch video" width="960" /></a>
-</video>
-
-[Watch the MovieTrack launch video](docs/assets/brag.mp4)
+![MovieTrack launch video](docs/assets/brag.gif)
 
 ## Features
 
