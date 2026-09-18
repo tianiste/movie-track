@@ -18,6 +18,7 @@ It watches your active tab, detects a playing readable video element, saves a mi
 ## Index
 
 - [Screenshots](#screenshots)
+- [Launch video](#launch-video)
 - [Features](#features)
 - [Install](#install)
 - [Development](#development)
@@ -33,6 +34,15 @@ It watches your active tab, detects a playing readable video element, saves a mi
 | Popup history | Popup filters | Cross-device sync |
 | --- | --- | --- |
 | ![MovieTrack popup history](docs/screenshots/popup-history.png) | ![MovieTrack popup filters](docs/screenshots/popup-filters.png) | ![MovieTrack sync settings](docs/screenshots/sync-account.png) |
+
+## Launch Video
+
+<video controls muted playsinline poster="docs/assets/brag.jpg" width="960">
+  <source src="docs/assets/brag.mp4" type="video/mp4" />
+  <a href="docs/assets/brag.mp4"><img src="docs/assets/brag.jpg" alt="Watch the MovieTrack launch video" width="960" /></a>
+</video>
+
+[Watch the MovieTrack launch video](docs/assets/brag.mp4)
 
 ## Features
 
