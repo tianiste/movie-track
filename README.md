@@ -18,6 +18,7 @@ It watches only your active audible tab, detects a readable video element, saves
 ## Index
 
 - [Screenshots](#screenshots)
+- [Launch video](#launch-video)
 - [Features](#features)
 - [Install](#install)
 - [Development](#development)
@@ -33,6 +34,10 @@ It watches only your active audible tab, detects a readable video element, saves
 | Popup history | Popup filters | Cross-device sync |
 | --- | --- | --- |
 | ![MovieTrack popup history](docs/screenshots/popup-history.png) | ![MovieTrack popup filters](docs/screenshots/popup-filters.png) | ![MovieTrack sync settings](docs/screenshots/sync-account.png) |
+
+## Launch Video
+
+![MovieTrack launch video](docs/assets/brag.gif)
 
 ## Features
 
